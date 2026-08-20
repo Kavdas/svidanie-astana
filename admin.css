@@ -1,0 +1,316 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #050505;
+  color: #fff;
+  font-family: Arial, sans-serif;
+}
+
+.admin-page {
+  min-height: 100vh;
+  padding: 32px;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.login-card {
+  width: min(430px, 100%);
+  margin: 90px auto;
+  background: #111;
+  border: 1px solid rgba(245, 180, 0, 0.35);
+  border-radius: 24px;
+  padding: 32px;
+}
+
+.login-card p {
+  color: #bbb;
+}
+
+input,
+textarea,
+select {
+  width: 100%;
+  background: #181818;
+  border: 1px solid #333;
+  color: #fff;
+  padding: 14px;
+  border-radius: 12px;
+  margin-bottom: 14px;
+  font-size: 15px;
+}
+
+label {
+  display: block;
+  margin-bottom: 6px;
+  color: #f5b400;
+  font-weight: 700;
+}
+
+button {
+  border: none;
+  background: #f5b400;
+  color: #000;
+  padding: 13px 18px;
+  border-radius: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.admin-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  background: #111;
+  border-radius: 22px;
+  padding: 24px;
+  margin-bottom: 24px;
+  border: 1px solid rgba(245, 180, 0, 0.25);
+}
+
+.admin-header h1 {
+  margin: 0 0 8px;
+}
+
+.admin-header p {
+  margin: 0;
+  color: #bbb;
+}
+
+.admin-tabs {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.admin-tab {
+  background: #222;
+  color: #fff;
+}
+
+.admin-tab.active {
+  background: #f5b400;
+  color: #000;
+}
+
+/* Hidden until role check confirms admin, to avoid a flash of admin-only
+   tabs for managers while the role lookup is in flight. */
+.admin-only {
+  display: none;
+}
+
+.admin-only.role-visible {
+  display: revert;
+}
+
+.admin-panel {
+  background: #101010;
+  border-radius: 22px;
+  border: 1px solid rgba(245, 180, 0, 0.25);
+  padding: 24px;
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  margin-bottom: 22px;
+}
+
+.packages-list {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 28px;
+}
+
+.bookings-list {
+  display: grid;
+  gap: 14px;
+}
+
+.admin-package-card,
+.booking-card {
+  background: #181818;
+  border-radius: 16px;
+  padding: 18px;
+  border: 1px solid #2e2e2e;
+  display: grid;
+  gap: 8px;
+}
+
+.admin-package-card img {
+  width: 180px;
+  height: 110px;
+  object-fit: cover;
+  border-radius: 12px;
+}
+
+.admin-package-card h3,
+.booking-card h3 {
+  margin: 0;
+}
+
+.admin-package-card p,
+.booking-card p {
+  margin: 0;
+  color: #ddd;
+}
+
+.card-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.card-actions button:nth-child(2) {
+  background: #333;
+  color: #fff;
+}
+
+.package-form {
+  background: #151515;
+  border-radius: 20px;
+  padding: 24px;
+  border: 1px solid rgba(245, 180, 0, 0.25);
+}
+
+.checkbox-label {
+  color: #fff;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.field-hint {
+  color: #999;
+  font-size: 13px;
+  line-height: 1.5;
+  margin: -8px 0 12px;
+}
+
+.checkbox-label input {
+  width: auto;
+  margin: 0;
+}
+
+.form-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 700px) {
+  .admin-page {
+    padding: 16px;
+  }
+
+  .admin-header,
+  .panel-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+.gallery-admin-list {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+  margin-top: 24px;
+}
+
+.gallery-admin-card {
+  background: #181818;
+  border: 1px solid #2e2e2e;
+  border-radius: 16px;
+  padding: 14px;
+}
+
+.gallery-admin-card img {
+  width: 100%;
+  height: 170px;
+  object-fit: cover;
+  border-radius: 12px;
+  margin-bottom: 12px;
+}
+
+.gallery-admin-card h3 {
+  margin: 0 0 8px;
+}
+
+.gallery-admin-card p {
+  color: #ccc;
+  margin: 0 0 12px;
+}
+
+.danger-btn {
+  background: #b91c1c;
+  color: #fff;
+}
+
+@media (max-width: 900px) {
+  .gallery-admin-list {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .gallery-admin-list {
+    grid-template-columns: 1fr;
+  }
+}
+
+.booking-status-select {
+  max-width: 260px;
+  margin-bottom: 0;
+}
+
+.slot-panel {
+  display: grid;
+  gap: 12px;
+  background: #181818;
+  border: 1px solid #2e2e2e;
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.slot-status {
+  color: #ccc;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.slot-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  gap: 10px;
+}
+
+.slot-btn {
+  min-height: 42px;
+  border-radius: 10px;
+  border: 1px solid rgba(245, 180, 0, 0.4);
+  background: #222;
+  color: #f5b400;
+  font-size: 13.5px;
+  font-weight: 700;
+  padding: 8px;
+}
+
+.slot-btn:hover,
+.slot-btn.active {
+  background: #f5b400;
+  color: #000;
+}
+
+.manager-booking-summary {
+  color: #f5b400;
+  font-weight: 700;
+  margin-bottom: 14px;
+}

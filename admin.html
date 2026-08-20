@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>Админ-панель | Svidanie Astana</title>
+
+  <link rel="stylesheet" href="admin.css" />
+</head>
+
+<body>
+  <main class="admin-page">
+    <section class="login-card" id="loginSection">
+      <h1>Вход в админ-панель</h1>
+      <p>Войдите, чтобы редактировать пакеты и смотреть заявки.</p>
+
+      <form id="loginForm">
+        <input type="email" id="adminEmail" placeholder="Email администратора" required />
+        <input type="password" id="adminPassword" placeholder="Пароль" required />
+        <button type="submit">Войти</button>
+      </form>
+    </section>
+
+    <section class="dashboard hidden" id="dashboardSection">
+      <div class="admin-header">
+        <div>
+          <h1>Админ-панель</h1>
+          <p>Редактирование пакетов, цен, фото и заявок</p>
+        </div>
+
+        <button id="logoutBtn">Выйти</button>
+      </div>
+
+    <div class="admin-tabs">
+        <button class="admin-tab admin-only active" data-panel="packagesPanel">Пакеты</button>
+        <button class="admin-tab admin-only" data-panel="galleryPanel">Галерея</button>
+        <button class="admin-tab admin-only" data-panel="settingsPanel">Настройки сайта</button>
+        <button class="admin-tab admin-only" data-panel="staffPanel">Сотрудники</button>
+        <button class="admin-tab" data-panel="bookingsPanel">Заявки</button>
+        <button class="admin-tab" data-panel="managerBookingPanel">Забронировать для клиента</button>
+    </div>
+
+      <section class="admin-panel" id="packagesPanel">
+        <div class="panel-header">
+          <h2>Пакеты</h2>
+          <button id="newPackageBtn">Добавить пакет</button>
+        </div>
+
+        <div class="packages-list" id="adminPackagesList"></div>
+
+        <form class="package-form hidden" id="packageForm">
+          <h2 id="formTitle">Новый пакет</h2>
+
+          <input type="hidden" id="packageId" />
+
+          <label>Название пакета</label>
+          <input type="text" id="packageTitle" required />
+
+          <label>Категория</label>
+          <select id="packageCategory" required>
+            <option value="date">Свидания</option>
+            <option value="birthday">День рождения</option>
+            <option value="proposal">Предложение</option>
+            <option value="combo">Комбо</option>
+          </select>
+
+          <label>Название категории на карточке</label>
+          <input type="text" id="packageCategoryName" required />
+
+          <label>Цена</label>
+          <input type="text" id="packagePrice" placeholder="39 990 тг" required />
+
+          <label>Цена (число, тенге, без пробелов)</label>
+          <input type="number" id="packagePriceAmount" placeholder="39990" min="0" step="1" required />
+          <p class="field-hint">
+            Используется, чтобы автоматически считать сумму предоплаты (50%) на сайте.
+            Должно совпадать с ценой выше.
+          </p>
+
+          <label>Длительность для бронирования, в минутах</label>
+          <input type="number" id="packageDurationMinutes" placeholder="60" required />
+
+          <label>Перерыв на подготовку после пакета, в минутах</label>
+          <input type="number" id="packagePrepMinutes" value="30" required />
+
+          <label>Что входит — каждый пункт с новой строки</label>
+          <textarea id="packageIncludes" rows="8"></textarea>
+
+          <label>Примечание</label>
+          <textarea id="packageNote" rows="4"></textarea>
+
+          <label>Фото пакета</label>
+          <input type="file" id="packageImage" accept="image/*" />
+
+          <label>Порядок отображения</label>
+          <input type="number" id="packageSortOrder" value="0" />
+
+          <label class="checkbox-label">
+            <input type="checkbox" id="packageIsActive" checked />
+            Показывать на сайте
+          </label>
+
+          <div class="form-actions">
+            <button type="submit">Сохранить</button>
+            <button type="button" id="cancelPackageBtn">Отмена</button>
+          </div>
+        </form>
+      </section>
+
+<section class="admin-panel hidden" id="galleryPanel">
+  <div class="panel-header">
+    <h2>Галерея</h2>
+  </div>
+
+  <form class="package-form" id="galleryForm">
+    <label>Название фото</label>
+    <input type="text" id="galleryTitle" placeholder="Например: Романтический купол" />
+
+    <label>Фото для галереи</label>
+    <input type="file" id="galleryImage" accept="image/*" required />
+
+    <label>Порядок отображения</label>
+    <input type="number" id="gallerySortOrder" value="0" />
+
+    <button type="submit">Добавить фото</button>
+  </form>
+
+  <div class="gallery-admin-list" id="adminGalleryList"></div>
+</section>
+
+<section class="admin-panel hidden" id="settingsPanel">
+  <h2>Настройки сайта</h2>
+
+  <form class="package-form" id="settingsForm">
+    <label>WhatsApp номер менеджера</label>
+    <input type="text" id="settingsWhatsapp" placeholder="77052518757" required />
+
+    <label>Instagram ссылка</label>
+    <input type="url" id="settingsInstagram" placeholder="https://www.instagram.com/svidanie.astana/" required />
+
+    <label>Заголовок главного экрана</label>
+    <textarea id="settingsHeroTitle" rows="3" required></textarea>
+
+    <label>Подзаголовок главного экрана</label>
+    <textarea id="settingsHeroSubtitle" rows="4" required></textarea>
+
+    <label>Фоновое фото главного экрана</label>
+    <input type="file" id="settingsHeroImage" accept="image/*" />
+
+    <label>Адрес</label>
+    <input type="text" id="settingsAddress" placeholder="Астана, левый берег..." />
+
+    <label>Рабочее время</label>
+    <input type="text" id="settingsWorkingHours" placeholder="Ежедневно с 10:00 до 02:00" />
+
+    <label>Ссылка на оплату Kaspi (pay.kaspi.kz/pay/...)</label>
+    <input type="url" id="settingsKaspiPayLink" placeholder="https://pay.kaspi.kz/pay/xxxxxxxx" />
+    <p class="field-hint">
+      Клиент увидит кнопку «Оплатить через Kaspi», которая откроет эту ссылку.
+      Если сумма в Kaspi не подставляется автоматически — клиенту нужно ввести
+      её вручную (сайт покажет точную сумму рядом с кнопкой).
+    </p>
+
+    <label>Реквизиты Kaspi текстом (запасной вариант)</label>
+    <textarea id="settingsKaspiRequisites" rows="3" placeholder="Kaspi Gold: +7 705 251 8757&#10;Получатель: Имя Фамилия"></textarea>
+    <p class="field-hint">
+      Показывается вместе со ссылкой на оплату — на случай, если клиенту удобнее
+      перевести вручную по номеру, а не через ссылку.
+    </p>
+
+    <label>Telegram Chat ID менеджера(ов) для уведомлений о новых заявках</label>
+    <input type="text" id="settingsManagerChatIds" placeholder="976674419" />
+    <p class="field-hint">
+      Сюда бот присылает уведомления о новых бронях. Если менеджер поменялся —
+      попросите нового менеджера написать боту
+      <strong>@svidanie_astana_manager_bot</strong> (или переслать ему любое
+      сообщение из бота @userinfobot, чтобы узнать свой chat id) и вставьте его
+      сюда. Для нескольких менеджеров укажите ID через запятую. Оставьте поле
+      пустым, чтобы использовать значение из настроек сервера по умолчанию.
+    </p>
+
+    <button type="submit">Сохранить настройки</button>
+  </form>
+</section>
+
+<section class="admin-panel hidden" id="staffPanel">
+  <div class="panel-header">
+    <h2>Сотрудники</h2>
+  </div>
+
+  <form class="package-form" id="staffForm">
+    <label>Email нового сотрудника</label>
+    <input type="email" id="staffEmail" placeholder="manager@svidanie.kz" required />
+
+    <label>Временный пароль (сотрудник сможет сменить после входа)</label>
+    <input type="text" id="staffPassword" placeholder="минимум 8 символов" required minlength="8" />
+
+    <label>Роль</label>
+    <select id="staffRole" required>
+      <option value="manager">Менеджер — только заявки</option>
+      <option value="admin">Администратор — полный доступ</option>
+    </select>
+
+    <button type="submit">Добавить сотрудника</button>
+  </form>
+
+  <div class="packages-list" id="staffList"></div>
+</section>
+
+<section class="admin-panel hidden" id="bookingsPanel">
+  <div class="panel-header">
+    <h2>Заявки</h2>
+    <button id="refreshBookingsBtn" type="button">Обновить</button>
+  </div>
+
+  <div class="bookings-list" id="bookingsList"></div>
+</section>
+
+<section class="admin-panel hidden" id="managerBookingPanel">
+  <div class="panel-header">
+    <h2>Забронировать для клиента</h2>
+  </div>
+
+  <p class="field-hint" style="margin-top: -6px;">
+    Для клиентов, которые звонят или пишут напрямую менеджеру: выберите пакет
+    и дату, посмотрите свободное время и оформите бронь сразу здесь — клиенту
+    не нужно самому заходить на сайт.
+  </p>
+
+  <form class="package-form" id="managerBookingForm">
+    <label>Пакет</label>
+    <select id="managerPackageSelect" required>
+      <option value="">Загружаем пакеты...</option>
+    </select>
+
+    <label>Дата</label>
+    <input type="date" id="managerBookingDate" required />
+
+    <div class="slot-panel">
+      <p class="slot-status" id="managerSlotStatus">Сначала выберите пакет и дату</p>
+      <div class="slot-grid" id="managerSlotGrid"></div>
+    </div>
+
+    <div class="hidden" id="managerClientFields">
+      <label>Имя клиента</label>
+      <input type="text" id="managerClientName" placeholder="Имя клиента" />
+
+      <label>Телефон клиента</label>
+      <input type="tel" id="managerClientPhone" placeholder="Номер телефона" />
+
+      <label>Комментарий (необязательно)</label>
+      <textarea id="managerClientComment" rows="3" placeholder="Пожелания, детали разговора"></textarea>
+
+      <button type="submit">Забронировать выбранное время</button>
+    </div>
+  </form>
+</section>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <script src="admin.js"></script>
+</body>
+</html>

@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>Свидание в Астане | Романтические свидания и предложения</title>
+
+  <meta
+    name="description"
+    content="Романтические свидания, день рождения и предложение руки и сердца в панорамном куполе в Астане."
+  />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500&family=Manrope:wght@400;500;600;700;800&display=swap&subset=cyrillic"
+    rel="stylesheet"
+  />
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+  <!-- HEADER -->
+  <header class="header">
+    <div class="container header-inner">
+      <a href="#" class="logo">
+        <span>Svidanie</span>.Astana
+      </a>
+
+      <nav class="nav">
+        <a href="#packages">Пакеты</a>
+        <a href="#about">О нас</a>
+        <a href="#gallery">Галерея</a>
+        <a href="#contacts">Контакты</a>
+      </nav>
+
+      <div class="header-actions">
+        <a
+        class="instagram-link"
+        href="https://www.instagram.com/svidanie.astana/"
+        target="_blank"
+        data-instagram-link
+        >
+        Instagram
+        </a>
+
+        <button class="whatsapp-small-btn" onclick="openManagerWhatsApp()">
+          <span class="whatsapp-icon"></span>
+          WhatsApp
+        </button>
+      </div>
+
+      <button class="burger" id="burgerBtn">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    </div>
+
+    <div class="mobile-menu" id="mobileMenu">
+      <a href="#packages">Пакеты</a>
+      <a href="#about">О нас</a>
+      <a href="#gallery">Галерея</a>
+      <a href="#contacts">Контакты</a>
+      <button onclick="openManagerWhatsApp()">
+        <span class="whatsapp-icon"></span>
+        WhatsApp
+      </button>
+    </div>
+  </header>
+
+  <!-- HERO -->
+  <section class="hero" id="heroSection">
+    <div class="hero-overlay"></div>
+
+    <div class="container hero-content">
+      <p class="hero-label">Романтические события в Астане</p>
+
+      <h1 id="heroTitle">
+        Организуем незабываемое свидание,
+        день рождения или предложение руки и сердца
+     </h1>
+
+      <p class="hero-text" id="heroSubtitle">
+        Панорамный купол, вид на город, романтическое оформление,
+        горячая еда, музыка и атмосфера только для вас.
+      </p>
+
+      <div class="hero-buttons">
+        <a href="#packages" class="main-btn">Выбрать пакет</a>
+
+        <button class="outline-btn" onclick="openManagerWhatsApp()">
+          <span class="whatsapp-icon"></span>
+          Написать менеджеру
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <section class="process-section">
+    <div class="container">
+      <div class="section-heading">
+        <p class="section-label">Как это устроено</p>
+        <h2>Четыре причины довериться нам</h2>
+      </div>
+
+      <div class="process-grid">
+        <article class="process-card">
+          <span class="process-index">01</span>
+          <h3>Комфорт в любое время года</h3>
+          <p>Зимой в куполе тепло и уютно, а летом не жарко: пространство подготовлено для свиданий в любую погоду.</p>
+        </article>
+
+        <article class="process-card">
+          <span class="process-index">02</span>
+          <h3>Работаем каждый день</h3>
+          <p>Принимаем брони без выходных, чтобы вы могли выбрать удобную дату для свидания, дня рождения или предложения.</p>
+        </article>
+
+        <article class="process-card">
+          <span class="process-index">03</span>
+          <h3>Горячая и вкусная еда</h3>
+          <p>Блюда приезжают вовремя, подаются горячими и красиво сервируются к вашему приходу.</p>
+        </article>
+
+        <article class="process-card">
+          <span class="process-index">04</span>
+          <h3>Атмосфера под ключ</h3>
+          <p>Свечи, лепестки, цветы, музыка, фотозона и панорамный вид на Астану уже ждут вас внутри.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ABOUT -->
+  <section class="about-section" id="about">
+    <div class="container about-grid">
+      <div>
+        <p class="section-label">Почему выбирают нас</p>
+        <h2>Романтика под ключ</h2>
+        <p>
+          Мы полностью готовим локацию, оформление, музыку, сервировку,
+          угощения и атмосферу. Вам остаётся только прийти и наслаждаться моментом.
+        </p>
+      </div>
+
+      <div class="features-grid">
+        <div class="feature-card">
+          <h3>Панорамный вид</h3>
+          <p>Центр города, 13 этаж, красивый вид на Астану.</p>
+        </div>
+
+        <div class="feature-card">
+          <h3>Тёплый купол</h3>
+          <p>Уютный купол с отоплением и кондиционером.</p>
+        </div>
+
+        <div class="feature-card">
+          <h3>Оформление</h3>
+          <p>Свечи, лепестки, фотозона, цветы и романтический декор.</p>
+        </div>
+
+        <div class="feature-card">
+          <h3>Менеджер</h3>
+          <p>Менеджер поможет выбрать пакет и свободное время.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PACKAGES -->
+  <section class="packages-section" id="packages">
+    <div class="container">
+      <div class="section-heading">
+        <p class="section-label">Наши пакеты</p>
+        <h2>Выберите формат события</h2>
+        <p>
+          Нажмите на нужную вкладку, выберите пакет и отправьте заявку менеджеру в WhatsApp.
+        </p>
+      </div>
+
+      <div class="package-tabs">
+        <button class="tab-btn active" data-category="all">Все</button>
+        <button class="tab-btn" data-category="date">Свидания</button>
+        <button class="tab-btn" data-category="birthday">День рождения</button>
+        <button class="tab-btn" data-category="proposal">Предложение</button>
+        <button class="tab-btn" data-category="combo">Комбо</button>
+      </div>
+
+      <div class="packages-grid" id="packagesGrid"></div>
+    </div>
+  </section>
+
+  <!-- GALLERY -->
+  <section class="gallery-section" id="gallery">
+    <div class="container">
+      <div class="section-heading">
+        <p class="section-label">Галерея</p>
+        <h2>Атмосфера наших вечеров</h2>
+        <p>Живые кадры из купола: свет, декор и настроение, которое мы создаём для вас.</p>
+      </div>
+
+   <div class="gallery-grid" id="galleryGrid">
+        <p>Загружаем галерею...</p>
+        </div>
+    </div>
+  </section>
+
+  <!-- CONTACTS -->
+  <section class="contacts-section" id="contacts">
+    <div class="container contacts-card">
+      <p class="section-label">Контакты</p>
+      <h2>Свяжитесь с менеджером</h2>
+
+      <p>
+        Для бронирования, уточнения свободного времени и оплаты напишите менеджеру в WhatsApp.
+      </p>
+
+      <div class="contacts-buttons">
+        <button class="main-btn" onclick="openManagerWhatsApp()">
+          <span class="whatsapp-icon"></span>
+          Написать в WhatsApp
+        </button>
+
+        <a
+            href="https://www.instagram.com/svidanie.astana/"
+            target="_blank"
+            class="outline-link"
+            data-instagram-link
+            >
+            Перейти в Instagram
+        </a>
+      </div>
+
+      <div class="contact-info">
+        <p><strong>WhatsApp:</strong> +7 705 251 8757</p>
+        <p><strong>Instagram:</strong> @svidanie.astana</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <div class="container footer-inner">
+      <p>© 2026 Svidanie Astana. Все права защищены.</p>
+      <p>Предоплата подтверждает бронь и является невозвратной.</p>
+    </div>
+  </footer>
+
+  <!-- FLOATING WHATSAPP -->
+  <button class="floating-whatsapp" onclick="openManagerWhatsApp()">
+    <span class="whatsapp-icon"></span>
+  </button>
+
+  <!-- PACKAGE MODAL -->
+  <div class="modal" id="packageModal">
+    <div class="modal-overlay" onclick="closePackageModal()"></div>
+
+    <div class="modal-content">
+      <button class="modal-close" onclick="closePackageModal()">×</button>
+
+      <div class="modal-body">
+        <div class="modal-image" id="modalImage"></div>
+        <span class="modal-badge" id="modalCategory"></span>
+
+        <h2 id="modalTitle"></h2>
+
+        <div class="modal-meta">
+          <p id="modalPrice"></p>
+          <p id="modalDuration"></p>
+          <p id="modalDeposit"></p>
+        </div>
+
+        <div class="modal-section">
+          <h3>Что входит</h3>
+          <ul id="modalIncludes"></ul>
+        </div>
+
+        <div class="modal-section">
+          <h3>Примечание</h3>
+          <p id="modalNote"></p>
+        </div>
+
+        <form class="booking-form" id="bookingForm">
+          <h3>Оставить заявку</h3>
+
+          <input type="text" id="clientName" placeholder="Ваше имя" required />
+          <input type="tel" id="clientPhone" placeholder="Ваш номер телефона" required />
+          <input type="date" id="clientDate" required />
+
+          <select id="clientSlot" class="visually-hidden-select" required>
+            <option value="">Сначала выберите дату</option>
+          </select>
+
+          <div class="slot-panel">
+            <p class="slot-status" id="slotStatus">Сначала выберите дату</p>
+            <div class="slot-grid" id="slotGrid"></div>
+          </div>
+
+          <textarea id="clientComment" placeholder="Комментарий, пожелания"></textarea>
+
+          <button type="submit" class="whatsapp-submit-btn">
+            <span class="whatsapp-icon"></span>
+            Отправить заявку
+          </button>
+        </form>
+
+        <div class="payment-section hidden" id="paymentSection">
+          <h3>Заявка отправлена ✅</h3>
+          <p id="paymentAmountText"></p>
+          <a href="#" target="_blank" rel="noopener" class="main-btn hidden" id="paymentKaspiLink">
+            Оплатить через Kaspi
+          </a>
+          <p id="paymentRequisitesText"></p>
+          <button type="button" class="outline-btn" id="paymentClaimBtn">
+            Я оплатил(а)
+          </button>
+          <p class="slot-status" id="paymentStatusText"></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script src="config.js"></script>
+<script src="script.js"></script>
+</body>
+</html>

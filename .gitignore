@@ -1,0 +1,32 @@
+# Secrets — never commit real environment files
+.env
+.env.*
+!.env.example
+
+# Dependencies / build output
+node_modules/
+dist/
+build/
+
+# Stray/local-only scaffolding, not part of the shipped project
+svidanie-backend/
+.agents/
+.claude/
+
+# Vercel CLI local project link (contains project/org IDs)
+.vercel/
+
+# OS / editor junk
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Local scratch/debug scripts
+tmp-*.js
+scratch-*.js
+scratch-*.png

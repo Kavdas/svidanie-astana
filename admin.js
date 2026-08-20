@@ -1,0 +1,946 @@
+let currentUser = null;
+let currentUserRole = null;
+let editingPackageId = null;
+
+const loginSection = document.getElementById("loginSection");
+const dashboardSection = document.getElementById("dashboardSection");
+
+const loginForm = document.getElementById("loginForm");
+const logoutBtn = document.getElementById("logoutBtn");
+const galleryForm = document.getElementById("galleryForm");
+const adminGalleryList = document.getElementById("adminGalleryList");
+
+const settingsForm = document.getElementById("settingsForm");
+const adminPackagesList = document.getElementById("adminPackagesList");
+const packageForm = document.getElementById("packageForm");
+const newPackageBtn = document.getElementById("newPackageBtn");
+const cancelPackageBtn = document.getElementById("cancelPackageBtn");
+
+const bookingsList = document.getElementById("bookingsList");
+const refreshBookingsBtn = document.getElementById("refreshBookingsBtn");
+
+const staffForm = document.getElementById("staffForm");
+const staffList = document.getElementById("staffList");
+
+const managerBookingForm = document.getElementById("managerBookingForm");
+const managerPackageSelect = document.getElementById("managerPackageSelect");
+const managerBookingDate = document.getElementById("managerBookingDate");
+const managerSlotStatus = document.getElementById("managerSlotStatus");
+const managerSlotGrid = document.getElementById("managerSlotGrid");
+const managerClientFields = document.getElementById("managerClientFields");
+
+let managerPackages = [];
+let managerSelectedSlot = null;
+
+async function apiRequest(path, options = {}) {
+  const response = await fetch(`${window.API_BASE_URL}${path}`, {
+    headers: {
+      "Content-Type": "application/json",
+      ...(options.headers || {})
+    },
+    ...options
+  });
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    const message = Array.isArray(data.message)
+      ? data.message.join("\n")
+      : data.message || "Ошибка запроса";
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+async function adminApiRequest(path, options = {}) {
+  const { data } = await supabaseClient.auth.getSession();
+  const accessToken = data.session?.access_token;
+
+  if (!accessToken) {
+    throw new Error("Сессия администратора не найдена");
+  }
+
+  const response = await fetch(`${window.API_BASE_URL}${path}`, {
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+      ...(options.headers || {})
+    },
+    ...options
+  });
+
+  const responseData = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    const message = Array.isArray(responseData.message)
+      ? responseData.message.join("\n")
+      : responseData.message || "Ошибка запроса";
+    throw new Error(message);
+  }
+
+  return responseData;
+}
+
+loginForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+
+  const email = document.getElementById("adminEmail").value.trim();
+  const password = document.getElementById("adminPassword").value.trim();
+
+  const { data, error } = await supabaseClient.auth.signInWithPassword({
+    email,
+    password
+  });
+
+  if (error) {
+    alert("Ошибка входа: " + error.message);
+    return;
+  }
+
+  currentUser = data.user;
+  showDashboard();
+});
+
+logoutBtn.addEventListener("click", async () => {
+  await supabaseClient.auth.signOut();
+  location.reload();
+});
+
+async function checkSession() {
+  const { data } = await supabaseClient.auth.getSession();
+
+  if (data.session) {
+    currentUser = data.session.user;
+    showDashboard();
+  }
+}
+
+async function showDashboard() {
+  loginSection.classList.add("hidden");
+  dashboardSection.classList.remove("hidden");
+
+  currentUserRole = await loadCurrentUserRole();
+  applyRoleRestrictions(currentUserRole);
+
+  if (currentUserRole === "admin") {
+    await loadAdminPackages();
+    await loadGalleryAdmin();
+    await loadSettingsAdmin();
+    await loadStaff();
+  }
+
+  await loadBookings();
+  await loadManagerBookingPackages();
+}
+
+async function loadCurrentUserRole() {
+  const { data, error } = await supabaseClient
+    .from("admin_users")
+    .select("role")
+    .eq("user_id", currentUser.id)
+    .single();
+
+  if (error || !data) {
+    alert("У этого аккаунта нет доступа к админ-панели. Обратитесь к администратору.");
+    await supabaseClient.auth.signOut();
+    location.reload();
+    return null;
+  }
+
+  return data.role;
+}
+
+function applyRoleRestrictions(role) {
+  const isAdmin = role === "admin";
+
+  document.querySelectorAll(".admin-only").forEach((element) => {
+    element.classList.toggle("role-visible", isAdmin);
+  });
+
+  if (!isAdmin) {
+    document.querySelectorAll(".admin-tab").forEach((tab) => {
+      tab.classList.remove("active");
+    });
+    document.querySelectorAll(".admin-panel").forEach((panel) => {
+      panel.classList.add("hidden");
+    });
+
+    document.querySelector('[data-panel="bookingsPanel"]')?.classList.add("active");
+    document.getElementById("bookingsPanel")?.classList.remove("hidden");
+  }
+}
+
+async function loadAdminPackages() {
+  const { data, error } = await supabaseClient
+    .from("packages")
+    .select("*")
+    .order("sort_order", { ascending: true });
+
+  if (error) {
+    adminPackagesList.innerHTML = `<p>Ошибка загрузки пакетов: ${error.message}</p>`;
+    return;
+  }
+
+  adminPackagesList.innerHTML = "";
+
+  data.forEach((item) => {
+    const card = document.createElement("div");
+    card.className = "admin-package-card";
+
+    card.innerHTML = `
+      ${item.image_url ? `<img src="${item.image_url}" alt="${item.title}" />` : ""}
+      <h3>${item.title}</h3>
+      <p><strong>Цена:</strong> ${item.price}</p>
+      <p><strong>Длительность:</strong> ${item.duration}</p>
+      <p><strong>Категория:</strong> ${item.category_name}</p>
+      <p><strong>Порядок:</strong> ${item.sort_order}</p>
+      <p><strong>Статус:</strong> ${item.is_active ? "Активен" : "Скрыт"}</p>
+
+      <div class="card-actions">
+        <button onclick="editPackage('${item.id}')">Редактировать</button>
+        <button onclick="togglePackageStatus('${item.id}', ${item.is_active})">
+          ${item.is_active ? "Скрыть" : "Показать"}
+        </button>
+      </div>
+    `;
+
+    adminPackagesList.appendChild(card);
+  });
+}
+
+newPackageBtn.addEventListener("click", () => {
+  editingPackageId = null;
+  packageForm.reset();
+
+  document.getElementById("packageId").value = "";
+  document.getElementById("formTitle").textContent = "Новый пакет";
+  document.getElementById("packageIsActive").checked = true;
+
+  packageForm.classList.remove("hidden");
+});
+
+cancelPackageBtn.addEventListener("click", () => {
+  packageForm.classList.add("hidden");
+  packageForm.reset();
+  editingPackageId = null;
+});
+
+async function editPackage(id) {
+  const { data, error } = await supabaseClient
+    .from("packages")
+    .select("*")
+    .eq("id", id)
+    .single();
+
+  if (error) {
+    alert("Ошибка загрузки пакета: " + error.message);
+    return;
+  }
+
+  editingPackageId = id;
+
+  document.getElementById("formTitle").textContent = "Редактировать пакет";
+  document.getElementById("packageId").value = data.id;
+  document.getElementById("packageTitle").value = data.title || "";
+  document.getElementById("packageCategory").value = data.category || "date";
+  document.getElementById("packageCategoryName").value = data.category_name || "";
+  document.getElementById("packagePrice").value = data.price || "";
+  document.getElementById("packagePriceAmount").value = data.price_amount || "";
+  document.getElementById("packageDurationMinutes").value = data.duration_minutes || 60;
+  document.getElementById("packagePrepMinutes").value = data.prep_minutes || 30;
+  document.getElementById("packageIncludes").value = (data.includes || []).join("\n");
+  document.getElementById("packageNote").value = data.note || "";
+  document.getElementById("packageSortOrder").value = data.sort_order || 0;
+  document.getElementById("packageIsActive").checked = data.is_active;
+
+  packageForm.classList.remove("hidden");
+  window.scrollTo({ top: packageForm.offsetTop - 40, behavior: "smooth" });
+}
+
+packageForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+
+  const imageFile = document.getElementById("packageImage").files[0];
+
+  let imageUrl = null;
+
+  if (imageFile) {
+    imageUrl = await uploadImage(imageFile);
+  }
+
+  const packageData = {
+    title: document.getElementById("packageTitle").value.trim(),
+    category: document.getElementById("packageCategory").value,
+    category_name: document.getElementById("packageCategoryName").value.trim(),
+    price: document.getElementById("packagePrice").value.trim(),
+    price_amount: Number(document.getElementById("packagePriceAmount").value || 0) || null,
+    duration_minutes: Number(document.getElementById("packageDurationMinutes").value || 60),
+    prep_minutes: Number(document.getElementById("packagePrepMinutes").value || 30),
+    includes: document
+      .getElementById("packageIncludes")
+      .value
+      .split("\n")
+      .map((item) => item.trim())
+      .filter(Boolean),
+    note: document.getElementById("packageNote").value.trim(),
+    sort_order: Number(document.getElementById("packageSortOrder").value || 0),
+    is_active: document.getElementById("packageIsActive").checked,
+    updated_at: new Date().toISOString()
+  };
+
+  if (imageUrl) {
+    packageData.image_url = imageUrl;
+  }
+
+  let result;
+
+  if (editingPackageId) {
+    result = await supabaseClient
+      .from("packages")
+      .update(packageData)
+      .eq("id", editingPackageId);
+  } else {
+    result = await supabaseClient
+      .from("packages")
+      .insert(packageData);
+  }
+
+  if (result.error) {
+    alert("Ошибка сохранения: " + result.error.message);
+    return;
+  }
+
+  alert("Сохранено");
+
+  packageForm.classList.add("hidden");
+  packageForm.reset();
+  editingPackageId = null;
+
+  await loadAdminPackages();
+});
+
+async function uploadImage(file) {
+  const fileExt = file.name.split(".").pop();
+  const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+  const filePath = `packages/${fileName}`;
+
+  const { error } = await supabaseClient.storage
+    .from("site-images")
+    .upload(filePath, file);
+
+  if (error) {
+    alert("Ошибка загрузки фото: " + error.message);
+    return null;
+  }
+
+  const { data } = supabaseClient.storage
+    .from("site-images")
+    .getPublicUrl(filePath);
+
+  return data.publicUrl;
+}
+
+async function togglePackageStatus(id, currentStatus) {
+  const { error } = await supabaseClient
+    .from("packages")
+    .update({
+      is_active: !currentStatus,
+      updated_at: new Date().toISOString()
+    })
+    .eq("id", id);
+
+  if (error) {
+    alert("Ошибка изменения статуса: " + error.message);
+    return;
+  }
+
+  await loadAdminPackages();
+}
+
+document.querySelectorAll(".admin-tab").forEach((tab) => {
+  tab.addEventListener("click", () => {
+    document.querySelectorAll(".admin-tab").forEach((item) => {
+      item.classList.remove("active");
+    });
+
+    tab.classList.add("active");
+
+    document.querySelectorAll(".admin-panel").forEach((panel) => {
+      panel.classList.add("hidden");
+    });
+
+    document.getElementById(tab.dataset.panel).classList.remove("hidden");
+  });
+});
+
+async function loadBookings() {
+  if (!bookingsList) return;
+
+  bookingsList.innerHTML = "<p>Загружаем заявки...</p>";
+
+  let data;
+
+  try {
+    data = await adminApiRequest("/admin/bookings");
+  } catch (error) {
+    bookingsList.innerHTML = `<p>Ошибка загрузки заявок: ${error.message}</p>`;
+    return;
+  }
+
+  bookingsList.innerHTML = "";
+
+  if (!data.bookings.length) {
+    bookingsList.innerHTML = "<p>Заявок пока нет.</p>";
+    return;
+  }
+
+  data.bookings.forEach((item) => {
+    const card = document.createElement("div");
+    card.className = "booking-card";
+
+    card.innerHTML = `
+      <h3>${item.clientName}</h3>
+      <p><strong>Телефон:</strong> ${item.clientPhone}</p>
+      <p><strong>Пакет:</strong> ${item.packageTitle || "Не указан"}</p>
+      <p><strong>Цена:</strong> ${item.packagePrice || "Не указана"}</p>
+      <p><strong>Дата и время:</strong> ${formatDateTime(item.startAt)}</p>
+      <p><strong>Окончание:</strong> ${formatDateTime(item.endAt)}</p>
+      <p><strong>Комментарий:</strong> ${item.comment || "Нет"}</p>
+      <p><strong>Предоплата:</strong> ${item.depositAmount ? `${item.depositAmount} тг — ${formatPaymentStatus(item.paymentStatus)}` : "не рассчитана"}</p>
+      <label>Статус</label>
+      <select class="booking-status-select" data-booking-id="${item.bookingId}">
+        ${renderStatusOptions(item.status)}
+      </select>
+      ${
+        item.depositAmount
+          ? `<div class="card-actions">
+              <button type="button" class="payment-confirm-btn" data-booking-id="${item.bookingId}" ${item.paymentStatus === "paid" ? "disabled" : ""}>
+                Подтвердить оплату
+              </button>
+              <button type="button" class="payment-reset-btn" data-booking-id="${item.bookingId}" ${item.paymentStatus ? "" : "disabled"}>
+                Сбросить оплату
+              </button>
+            </div>`
+          : ""
+      }
+    `;
+
+    bookingsList.appendChild(card);
+  });
+
+  document.querySelectorAll(".booking-status-select").forEach((select) => {
+    select.addEventListener("change", async () => {
+      await updateBookingStatus(select.dataset.bookingId, select.value);
+    });
+  });
+
+  document.querySelectorAll(".payment-confirm-btn").forEach((button) => {
+    button.addEventListener("click", async () => {
+      await updatePaymentStatus(button.dataset.bookingId, "paid");
+    });
+  });
+
+  document.querySelectorAll(".payment-reset-btn").forEach((button) => {
+    button.addEventListener("click", async () => {
+      await updatePaymentStatus(button.dataset.bookingId, null);
+    });
+  });
+}
+
+function formatPaymentStatus(paymentStatus) {
+  if (paymentStatus === "paid") return "оплачено ✅";
+  if (paymentStatus === "on_review") return "клиент отметил оплату, ждёт подтверждения";
+  return "не оплачено";
+}
+
+function renderStatusOptions(currentStatus) {
+  const statuses = [
+    "Новая",
+    "Связались",
+    "Ожидает оплату",
+    "Оплачено",
+    "Отменено"
+  ];
+
+  return statuses
+    .map((status) => {
+      const selected = status === currentStatus ? "selected" : "";
+      return `<option value="${status}" ${selected}>${status}</option>`;
+    })
+    .join("");
+}
+
+async function updateBookingStatus(bookingId, status) {
+  try {
+    await adminApiRequest(`/admin/bookings/${bookingId}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ status })
+    });
+    await loadBookings();
+  } catch (error) {
+    alert("Ошибка изменения статуса: " + error.message);
+  }
+}
+
+async function updatePaymentStatus(bookingId, paymentStatus) {
+  try {
+    await adminApiRequest(`/admin/bookings/${bookingId}/payment-status`, {
+      method: "PATCH",
+      body: JSON.stringify({ paymentStatus })
+    });
+    await loadBookings();
+  } catch (error) {
+    alert("Ошибка изменения статуса оплаты: " + error.message);
+  }
+}
+
+function formatDateTime(value) {
+  if (!value) return "Не указано";
+
+  return new Intl.DateTimeFormat("ru-RU", {
+    timeZone: "Asia/Almaty",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(new Date(value));
+}
+
+refreshBookingsBtn?.addEventListener("click", loadBookings);
+
+async function loadGalleryAdmin() {
+  if (!adminGalleryList) return;
+
+  const { data, error } = await supabaseClient
+    .from("gallery")
+    .select("*")
+    .order("sort_order", { ascending: true });
+
+  if (error) {
+    adminGalleryList.innerHTML = `<p>Ошибка загрузки галереи: ${error.message}</p>`;
+    return;
+  }
+
+  adminGalleryList.innerHTML = "";
+
+  if (!data.length) {
+    adminGalleryList.innerHTML = "<p>Фото пока не добавлены.</p>";
+    return;
+  }
+
+  data.forEach((item) => {
+    const card = document.createElement("div");
+    card.className = "gallery-admin-card";
+
+    card.innerHTML = `
+      <img src="${item.image_url}" alt="${item.title || "Фото"}" />
+      <h3>${item.title || "Без названия"}</h3>
+      <p><strong>Порядок:</strong> ${item.sort_order}</p>
+      <p><strong>Статус:</strong> ${item.is_active ? "Активно" : "Скрыто"}</p>
+
+      <div class="card-actions">
+        <button onclick="toggleGalleryStatus('${item.id}', ${item.is_active})">
+          ${item.is_active ? "Скрыть" : "Показать"}
+        </button>
+
+        <button class="danger-btn" onclick="deleteGalleryItem('${item.id}')">
+          Удалить
+        </button>
+      </div>
+    `;
+
+    adminGalleryList.appendChild(card);
+  });
+}
+
+galleryForm?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+
+  const imageFile = document.getElementById("galleryImage").files[0];
+
+  if (!imageFile) {
+    alert("Выберите фото");
+    return;
+  }
+
+  const imageUrl = await uploadImageToFolder(imageFile, "gallery");
+
+  if (!imageUrl) return;
+
+  const galleryData = {
+    title: document.getElementById("galleryTitle").value.trim(),
+    image_url: imageUrl,
+    sort_order: Number(document.getElementById("gallerySortOrder").value || 0),
+    is_active: true
+  };
+
+  const { error } = await supabaseClient
+    .from("gallery")
+    .insert(galleryData);
+
+  if (error) {
+    alert("Ошибка добавления фото: " + error.message);
+    return;
+  }
+
+  alert("Фото добавлено");
+
+  galleryForm.reset();
+  await loadGalleryAdmin();
+});
+
+async function toggleGalleryStatus(id, currentStatus) {
+  const { error } = await supabaseClient
+    .from("gallery")
+    .update({
+      is_active: !currentStatus
+    })
+    .eq("id", id);
+
+  if (error) {
+    alert("Ошибка изменения статуса: " + error.message);
+    return;
+  }
+
+  await loadGalleryAdmin();
+}
+
+async function deleteGalleryItem(id) {
+  const confirmed = confirm("Точно удалить это фото из галереи?");
+
+  if (!confirmed) return;
+
+  const { error } = await supabaseClient
+    .from("gallery")
+    .delete()
+    .eq("id", id);
+
+  if (error) {
+    alert("Ошибка удаления: " + error.message);
+    return;
+  }
+
+  await loadGalleryAdmin();
+}
+
+async function loadSettingsAdmin() {
+  if (!settingsForm) return;
+
+  const { data, error } = await supabaseClient
+    .from("site_settings")
+    .select("*")
+    .limit(1)
+    .single();
+
+  if (error) {
+    alert("Ошибка загрузки настроек: " + error.message);
+    return;
+  }
+
+  document.getElementById("settingsWhatsapp").value = data.whatsapp_phone || "";
+  document.getElementById("settingsInstagram").value = data.instagram_url || "";
+  document.getElementById("settingsHeroTitle").value = data.hero_title || "";
+  document.getElementById("settingsHeroSubtitle").value = data.hero_subtitle || "";
+  document.getElementById("settingsAddress").value = data.address || "";
+  document.getElementById("settingsWorkingHours").value = data.working_hours || "";
+  document.getElementById("settingsManagerChatIds").value = data.manager_chat_ids || "";
+  document.getElementById("settingsKaspiRequisites").value = data.kaspi_requisites || "";
+  document.getElementById("settingsKaspiPayLink").value = data.kaspi_pay_link || "";
+}
+
+settingsForm?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+
+  const heroImageFile = document.getElementById("settingsHeroImage").files[0];
+
+  let heroImageUrl = null;
+
+  if (heroImageFile) {
+    heroImageUrl = await uploadImageToFolder(heroImageFile, "hero");
+  }
+
+  const settingsData = {
+    whatsapp_phone: document.getElementById("settingsWhatsapp").value.trim(),
+    instagram_url: document.getElementById("settingsInstagram").value.trim(),
+    hero_title: document.getElementById("settingsHeroTitle").value.trim(),
+    hero_subtitle: document.getElementById("settingsHeroSubtitle").value.trim(),
+    address: document.getElementById("settingsAddress").value.trim(),
+    working_hours: document.getElementById("settingsWorkingHours").value.trim(),
+    manager_chat_ids: document.getElementById("settingsManagerChatIds").value.trim() || null,
+    kaspi_requisites: document.getElementById("settingsKaspiRequisites").value.trim() || null,
+    kaspi_pay_link: document.getElementById("settingsKaspiPayLink").value.trim() || null,
+    updated_at: new Date().toISOString()
+  };
+
+  if (heroImageUrl) {
+    settingsData.hero_image_url = heroImageUrl;
+  }
+
+  const { data: existingSettings, error: loadError } = await supabaseClient
+    .from("site_settings")
+    .select("id")
+    .limit(1)
+    .single();
+
+  if (loadError) {
+    alert("Ошибка поиска настроек: " + loadError.message);
+    return;
+  }
+
+  const { error } = await supabaseClient
+    .from("site_settings")
+    .update(settingsData)
+    .eq("id", existingSettings.id);
+
+  if (error) {
+    alert("Ошибка сохранения настроек: " + error.message);
+    return;
+  }
+
+  alert("Настройки сохранены");
+});
+
+async function uploadImageToFolder(file, folderName) {
+  const fileExt = file.name.split(".").pop();
+  const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+  const filePath = `${folderName}/${fileName}`;
+
+  const { error } = await supabaseClient.storage
+    .from("site-images")
+    .upload(filePath, file);
+
+  if (error) {
+    alert("Ошибка загрузки фото: " + error.message);
+    return null;
+  }
+
+  const { data } = supabaseClient.storage
+    .from("site-images")
+    .getPublicUrl(filePath);
+
+  return data.publicUrl;
+}
+
+async function loadStaff() {
+  if (!staffList) return;
+
+  staffList.innerHTML = "<p>Загружаем сотрудников...</p>";
+
+  let data;
+
+  try {
+    data = await adminApiRequest("/admin/staff");
+  } catch (error) {
+    staffList.innerHTML = `<p>Ошибка загрузки сотрудников: ${error.message}</p>`;
+    return;
+  }
+
+  staffList.innerHTML = "";
+
+  if (!data.staff.length) {
+    staffList.innerHTML = "<p>Сотрудников пока нет.</p>";
+    return;
+  }
+
+  data.staff.forEach((item) => {
+    const card = document.createElement("div");
+    card.className = "admin-package-card";
+
+    const roleLabel = item.role === "admin" ? "Администратор" : "Менеджер";
+    const isSelf = item.email?.toLowerCase() === currentUser.email?.toLowerCase();
+
+    card.innerHTML = `
+      <h3>${item.email}</h3>
+      <p><strong>Роль:</strong> ${roleLabel}</p>
+      <div class="card-actions">
+        <button type="button" class="danger-btn staff-remove-btn" data-staff-id="${item.id}" ${isSelf ? "disabled" : ""}>
+          Удалить доступ
+        </button>
+      </div>
+    `;
+
+    staffList.appendChild(card);
+  });
+
+  document.querySelectorAll(".staff-remove-btn").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const confirmed = confirm("Убрать доступ этого сотрудника в админ-панель?");
+
+      if (!confirmed) return;
+
+      try {
+        await adminApiRequest(`/admin/staff/${button.dataset.staffId}`, {
+          method: "DELETE"
+        });
+        await loadStaff();
+      } catch (error) {
+        alert("Ошибка удаления доступа: " + error.message);
+      }
+    });
+  });
+}
+
+staffForm?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+
+  const email = document.getElementById("staffEmail").value.trim();
+  const password = document.getElementById("staffPassword").value;
+  const role = document.getElementById("staffRole").value;
+
+  try {
+    await adminApiRequest("/admin/staff", {
+      method: "POST",
+      body: JSON.stringify({ email, password, role })
+    });
+
+    alert("Сотрудник добавлен. Сообщите ему email и временный пароль для входа.");
+    staffForm.reset();
+    await loadStaff();
+  } catch (error) {
+    alert("Ошибка добавления сотрудника: " + error.message);
+  }
+});
+
+async function loadManagerBookingPackages() {
+  if (!managerPackageSelect) return;
+
+  try {
+    const data = await apiRequest("/catalog/packages");
+    managerPackages = data.packages || [];
+
+    if (!managerPackages.length) {
+      managerPackageSelect.innerHTML = `<option value="">Нет активных пакетов</option>`;
+      return;
+    }
+
+    managerPackageSelect.innerHTML =
+      `<option value="">Выберите пакет</option>` +
+      managerPackages
+        .map((item) => `<option value="${item.id}">${item.title} — ${item.price || "цена уточняется"}</option>`)
+        .join("");
+  } catch (error) {
+    managerPackageSelect.innerHTML = `<option value="">Ошибка загрузки пакетов</option>`;
+  }
+}
+
+function resetManagerSlots(message) {
+  managerSelectedSlot = null;
+
+  if (managerSlotStatus) {
+    managerSlotStatus.textContent = message;
+  }
+
+  if (managerSlotGrid) {
+    managerSlotGrid.innerHTML = "";
+  }
+
+  managerClientFields?.classList.add("hidden");
+}
+
+async function loadManagerSlots() {
+  const packageId = managerPackageSelect?.value;
+  const date = managerBookingDate?.value;
+
+  if (!packageId || !date) {
+    resetManagerSlots("Сначала выберите пакет и дату");
+    return;
+  }
+
+  resetManagerSlots("Загружаем свободное время...");
+
+  try {
+    const data = await apiRequest("/bookings/available-slots", {
+      method: "POST",
+      body: JSON.stringify({ packageId, date })
+    });
+
+    renderManagerSlots(data.slots || []);
+  } catch (error) {
+    managerSlotStatus.textContent = "Не удалось загрузить свободное время";
+  }
+}
+
+function renderManagerSlots(slots) {
+  managerSlotGrid.innerHTML = "";
+
+  if (!slots.length) {
+    managerSlotStatus.textContent = "На эту дату свободного времени нет";
+    return;
+  }
+
+  managerSlotStatus.textContent = "Выберите удобное время";
+
+  slots.forEach((slot) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "slot-btn";
+    button.textContent = slot.displayLabel;
+    button.addEventListener("click", () => selectManagerSlot(slot, button));
+    managerSlotGrid.appendChild(button);
+  });
+}
+
+function selectManagerSlot(slot, button) {
+  managerSelectedSlot = slot;
+  managerSlotStatus.textContent = `Выбрано: ${slot.displayLabel}`;
+
+  document.querySelectorAll("#managerSlotGrid .slot-btn").forEach((slotButton) => {
+    slotButton.classList.remove("active");
+  });
+
+  button.classList.add("active");
+  managerClientFields?.classList.remove("hidden");
+}
+
+managerPackageSelect?.addEventListener("change", loadManagerSlots);
+managerBookingDate?.addEventListener("change", loadManagerSlots);
+
+managerBookingForm?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+
+  if (!managerSelectedSlot) {
+    alert("Выберите свободное время");
+    return;
+  }
+
+  const clientName = document.getElementById("managerClientName").value.trim();
+  const clientPhone = document.getElementById("managerClientPhone").value.trim();
+  const managerComment = document.getElementById("managerClientComment").value.trim();
+
+  if (!clientName || !clientPhone) {
+    alert("Укажите имя и телефон клиента");
+    return;
+  }
+
+  const comment = managerComment
+    ? `Бронь оформлена менеджером по телефону. ${managerComment}`
+    : "Бронь оформлена менеджером по телефону.";
+
+  try {
+    await apiRequest("/bookings", {
+      method: "POST",
+      body: JSON.stringify({
+        packageId: managerPackageSelect.value,
+        clientName,
+        clientPhone,
+        startAt: managerSelectedSlot.startAt,
+        comment
+      })
+    });
+
+    alert("Бронь создана");
+    managerBookingForm.reset();
+    resetManagerSlots("Сначала выберите пакет и дату");
+    await loadManagerSlots();
+
+    if (currentUserRole) {
+      await loadBookings();
+    }
+  } catch (error) {
+    alert(error.message || "Не удалось создать бронь");
+  }
+});
+
+checkSession();
