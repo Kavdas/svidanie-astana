@@ -4,6 +4,16 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
+  <!-- Applied before first paint so there's no flash of the wrong theme.
+       Dark is the default whenever nothing is saved yet — deliberately
+       not auto-detected from the OS/browser color scheme. -->
+  <script>
+    (function () {
+      var theme = localStorage.getItem("svidanie-theme") === "light" ? "light" : "dark";
+      document.documentElement.setAttribute("data-theme", theme);
+    })();
+  </script>
+
   <title>Свидание в Астане | Романтические свидания и предложения</title>
 
   <meta
@@ -50,6 +60,10 @@
           <span class="whatsapp-icon"></span>
           WhatsApp
         </button>
+
+        <button class="theme-toggle" id="themeToggle" type="button" aria-label="Переключить тему">
+          <span id="themeToggleIcon">🌙</span>
+        </button>
       </div>
 
       <button class="burger" id="burgerBtn">
@@ -67,6 +81,11 @@
       <button onclick="openManagerWhatsApp()">
         <span class="whatsapp-icon"></span>
         WhatsApp
+      </button>
+
+      <button class="theme-toggle" id="themeToggleMobile" type="button" aria-label="Переключить тему">
+        <span id="themeToggleIconMobile">🌙</span>
+        <span id="themeToggleLabelMobile">Тёмная тема</span>
       </button>
     </div>
   </header>

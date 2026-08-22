@@ -696,6 +696,43 @@ if (siteHeader) {
   updateHeaderScrolled();
 }
 
+const THEME_STORAGE_KEY = "svidanie-theme";
+
+function getStoredTheme() {
+  return localStorage.getItem(THEME_STORAGE_KEY) === "light" ? "light" : "dark";
+}
+
+function applyTheme(theme) {
+  document.documentElement.setAttribute("data-theme", theme);
+
+  const isLight = theme === "light";
+  const icon = isLight ? "☀️" : "🌙";
+  const label = isLight ? "Светлая тема" : "Тёмная тема";
+  const nextLabel = isLight ? "Включить тёмную тему" : "Включить светлую тему";
+
+  const iconEl = document.getElementById("themeToggleIcon");
+  const iconElMobile = document.getElementById("themeToggleIconMobile");
+  const labelElMobile = document.getElementById("themeToggleLabelMobile");
+  const btn = document.getElementById("themeToggle");
+  const btnMobile = document.getElementById("themeToggleMobile");
+
+  if (iconEl) iconEl.textContent = icon;
+  if (iconElMobile) iconElMobile.textContent = icon;
+  if (labelElMobile) labelElMobile.textContent = label;
+  if (btn) btn.setAttribute("aria-label", nextLabel);
+  if (btnMobile) btnMobile.setAttribute("aria-label", nextLabel);
+}
+
+function toggleTheme() {
+  const next = getStoredTheme() === "light" ? "dark" : "light";
+  localStorage.setItem(THEME_STORAGE_KEY, next);
+  applyTheme(next);
+}
+
+applyTheme(getStoredTheme());
+document.getElementById("themeToggle")?.addEventListener("click", toggleTheme);
+document.getElementById("themeToggleMobile")?.addEventListener("click", toggleTheme);
+
 async function initSite() {
   initScrollReveal();
   await Promise.allSettled([loadSiteSettings(), loadPackages(), loadGallery()]);
