@@ -60,6 +60,16 @@ export class AdminBookingsController {
     return this.adminBookingsService.updateEventStatus(id, body.eventStatus);
   }
 
+  @Patch(':id/reschedule')
+  rescheduleBooking(
+    @Req() request: AdminRequest,
+    @Param('id') id: string,
+    @Body() body: { startAt?: string },
+  ) {
+    this.assertCanSell(request);
+    return this.adminBookingsService.rescheduleBooking(id, body.startAt);
+  }
+
   private assertCanSell(request: AdminRequest) {
     if (request.adminRole !== 'admin' && request.adminRole !== 'manager') {
       throw new ForbiddenException('Only admins and managers can create bookings here');

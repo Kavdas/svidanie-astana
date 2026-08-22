@@ -325,7 +325,60 @@ export class BookingsService {
     return Math.round(priceAmount * DEPOSIT_RATE);
   }
 
-  private async assertSlotIsFree(startAt: Date, lockedUntil: Date) {
+  async rescheduleBooking(id: string, startAtIso: string) {
+    const existing = await this.databaseService.query<{ package_id: string }>(
+      'select package_id from bookings where id = $1 limit 1',
+      [id],
+    );
+
+    if (!existing.rows[0]) {
+      throw new NotFoundException('Booking not found');
+    }
+
+    const packageRow = await this.getPackage(existing.rows[0].package_id);
+    const startAt = new Date(startAtIso);
+
+    if (Number.isNaN(startAt.getTime())) {
+      throw new BadRequestException('startAt must be a valid ISO datetime');
+    }
+
+    const durationMinutes = this.getDurationMinutes(packageRow);
+    const prepMinutes = this.getPrepMinutes(packageRow);
+    const endAt = new Date(startAt.getTime() + durationMinutes * 60_000);
+    const lockedUntil = new Date(endAt.getTime() + prepMinutes * 60_000);
+
+    await this.assertSlotIsFree(startAt, lockedUntil, id);
+
+    const result = await this.databaseService.query<{
+      id: string;
+      start_at: Date | string;
+      end_at: Date | string;
+      locked_until: Date | string;
+    }>(
+      `
+        update bookings
+        set start_at = $2, end_at = $3, locked_until = $4
+        where id = $1
+        returning id, start_at, end_at, locked_until
+      `,
+      [id, startAt.toISOString(), endAt.toISOString(), lockedUntil.toISOString()],
+    );
+
+    const booking = result.rows[0];
+
+    return {
+      bookingId: booking.id,
+      startAt: new Date(booking.start_at).toISOString(),
+      endAt: new Date(booking.end_at).toISOString(),
+      lockedUntil: new Date(booking.locked_until).toISOString(),
+    };
+  }
+
+  private async assertSlotIsFree(
+    startAt: Date,
+    lockedUntil: Date,
+    excludeBookingId?: string,
+  ) {
     const result = await this.databaseService.query(
       `
         select id
@@ -336,9 +389,16 @@ export class BookingsService {
           and locked_until is not null
           and start_at < $4
           and locked_until > $3
+          and ($5::uuid is null or id <> $5)
         limit 1
       `,
-      [LOCATION_ID, ACTIVE_STATUSES, startAt.toISOString(), lockedUntil.toISOString()],
+      [
+        LOCATION_ID,
+        ACTIVE_STATUSES,
+        startAt.toISOString(),
+        lockedUntil.toISOString(),
+        excludeBookingId ?? null,
+      ],
     );
 
     if (result.rows.length > 0) {

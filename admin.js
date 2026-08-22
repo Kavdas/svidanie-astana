@@ -435,6 +435,16 @@ async function loadBookings() {
             </div>`
           : ""
       }
+      <div class="card-actions">
+        <button type="button" class="reschedule-toggle-btn" data-booking-id="${item.bookingId}">
+          Перенести
+        </button>
+      </div>
+      <div class="reschedule-panel hidden" id="reschedule-${item.bookingId}" data-booking-id="${item.bookingId}" data-package-id="${item.packageId}">
+        <input type="date" class="reschedule-date-input" />
+        <p class="slot-status reschedule-status">Выберите дату</p>
+        <div class="slot-grid reschedule-slot-grid"></div>
+      </div>
     `;
 
     card.innerHTML = `
@@ -467,6 +477,74 @@ async function loadBookings() {
       await updatePaymentStatus(button.dataset.bookingId, null);
     });
   });
+
+  document.querySelectorAll(".reschedule-toggle-btn").forEach((button) => {
+    button.addEventListener("click", () => {
+      const panel = document.getElementById(`reschedule-${button.dataset.bookingId}`);
+      panel?.classList.toggle("hidden");
+    });
+  });
+
+  document.querySelectorAll(".reschedule-panel .reschedule-date-input").forEach((input) => {
+    input.addEventListener("change", async () => {
+      const panel = input.closest(".reschedule-panel");
+      await loadRescheduleSlots(panel);
+    });
+  });
+}
+
+async function loadRescheduleSlots(panel) {
+  const statusEl = panel.querySelector(".reschedule-status");
+  const gridEl = panel.querySelector(".reschedule-slot-grid");
+  const dateInput = panel.querySelector(".reschedule-date-input");
+  const packageId = panel.dataset.packageId;
+  const bookingId = panel.dataset.bookingId;
+
+  if (!dateInput.value) {
+    statusEl.textContent = "Выберите дату";
+    gridEl.innerHTML = "";
+    return;
+  }
+
+  statusEl.textContent = "Загружаем свободное время...";
+  gridEl.innerHTML = "";
+
+  try {
+    const data = await apiRequest("/bookings/available-slots", {
+      method: "POST",
+      body: JSON.stringify({ packageId, date: dateInput.value })
+    });
+
+    if (!data.slots.length) {
+      statusEl.textContent = "На эту дату свободного времени нет";
+      return;
+    }
+
+    statusEl.textContent = "Выберите новое время";
+
+    data.slots.forEach((slot) => {
+      const slotBtn = document.createElement("button");
+      slotBtn.type = "button";
+      slotBtn.className = "slot-btn";
+      slotBtn.textContent = slot.displayLabel;
+      slotBtn.addEventListener("click", async () => {
+        try {
+          await adminApiRequest(`/admin/bookings/${bookingId}/reschedule`, {
+            method: "PATCH",
+            body: JSON.stringify({ startAt: slot.startAt })
+          });
+          alert("Бронь перенесена");
+          await loadBookings();
+          await loadSchedule();
+        } catch (error) {
+          alert("Не удалось перенести бронь: " + error.message);
+        }
+      });
+      gridEl.appendChild(slotBtn);
+    });
+  } catch (error) {
+    statusEl.textContent = "Ошибка загрузки свободного времени: " + error.message;
+  }
 }
 
 function formatPaymentStatus(paymentStatus) {

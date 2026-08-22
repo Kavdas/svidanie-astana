@@ -141,6 +141,14 @@ export class AdminBookingsService {
     return this.bookingsService.createBooking(dto, staffId);
   }
 
+  async rescheduleBooking(id: string, startAt?: string) {
+    if (!startAt) {
+      throw new BadRequestException('startAt is required');
+    }
+
+    return this.bookingsService.rescheduleBooking(id, startAt);
+  }
+
   async updateBookingStatus(id: string, status?: string) {
     if (!status || !ALLOWED_STATUSES.includes(status)) {
       throw new BadRequestException('Unsupported booking status');
