@@ -170,7 +170,7 @@ function renderPackages(category = "all") {
 
   filteredPackages.forEach((item) => {
     const card = document.createElement("article");
-    card.className = "package-card";
+    card.className = "package-card reveal";
 
     const packageImage = getPackageImage(item);
 
@@ -216,6 +216,8 @@ function renderPackages(category = "all") {
 
     packagesGrid.appendChild(card);
   });
+
+  initScrollReveal(packagesGrid);
 }
 
 function openPackageModal(packageId) {
@@ -529,7 +531,7 @@ async function loadGallery() {
       if (isVideo) {
         const video = document.createElement("video");
         video.src = item.image_url;
-        video.className = "gallery-photo gallery-video";
+        video.className = "gallery-photo gallery-video reveal";
         video.controls = true;
         video.playsInline = true;
         video.preload = "metadata";
@@ -540,9 +542,11 @@ async function loadGallery() {
       const img = document.createElement("img");
       img.src = item.image_url;
       img.alt = item.title || "Фото свидания";
-      img.className = "gallery-photo";
+      img.className = "gallery-photo reveal";
       galleryGrid.appendChild(img);
     });
+
+    initScrollReveal(galleryGrid);
   } catch (error) {
     galleryGrid.innerHTML = "<p>Не удалось загрузить галерею.</p>";
     console.error("Ошибка галереи:", error);
@@ -649,7 +653,51 @@ if (bookingForm) {
   bookingForm.addEventListener("submit", submitBooking);
 }
 
+function initScrollReveal(root = document) {
+  const items = root.querySelectorAll(".reveal:not(.is-visible)");
+
+  if (!items.length) return;
+
+  const prefersReducedMotion = window.matchMedia(
+    "(prefers-reduced-motion: reduce)"
+  ).matches;
+
+  if (prefersReducedMotion || !("IntersectionObserver" in window)) {
+    items.forEach((el) => el.classList.add("is-visible"));
+    return;
+  }
+
+  const observer = new IntersectionObserver(
+    (entries, obs) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add("is-visible");
+          obs.unobserve(entry.target);
+        }
+      });
+    },
+    { threshold: 0.15, rootMargin: "0px 0px -60px 0px" }
+  );
+
+  items.forEach((el, index) => {
+    el.style.transitionDelay = `${Math.min(index % 4, 3) * 90}ms`;
+    observer.observe(el);
+  });
+}
+
+const siteHeader = document.querySelector(".header");
+
+if (siteHeader) {
+  const updateHeaderScrolled = () => {
+    siteHeader.classList.toggle("scrolled", window.scrollY > 40);
+  };
+
+  window.addEventListener("scroll", updateHeaderScrolled, { passive: true });
+  updateHeaderScrolled();
+}
+
 async function initSite() {
+  initScrollReveal();
   await Promise.allSettled([loadSiteSettings(), loadPackages(), loadGallery()]);
 }
 
