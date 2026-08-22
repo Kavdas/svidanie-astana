@@ -1357,6 +1357,25 @@ h3 {
   white-space: pre-line;
 }
 
+.payment-section .payment-code {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: rgba(227, 171, 92, 0.12);
+  border: 1px dashed var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--paper);
+  font-size: 14.5px;
+}
+
+.payment-code strong {
+  font-family: var(--font-display);
+  font-size: 20px;
+  letter-spacing: 0.06em;
+  color: var(--accent-text);
+}
+
 body.modal-open {
   overflow: hidden;
 }

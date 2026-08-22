@@ -2,6 +2,12 @@ let currentUser = null;
 let currentUserRole = null;
 let editingPackageId = null;
 
+// Same derivation as script.js's getBookingReferenceCode — the short code
+// the client was asked to write in their Kaspi transfer comment.
+function getBookingReferenceCode(bookingId) {
+  return (bookingId || "").slice(0, 8).toUpperCase();
+}
+
 const loginSection = document.getElementById("loginSection");
 const dashboardSection = document.getElementById("dashboardSection");
 
@@ -418,6 +424,7 @@ async function loadBookings() {
       : `
       <p><strong>Цена:</strong> ${item.packagePrice || "Не указана"}</p>
       <p><strong>Предоплата:</strong> ${item.depositAmount ? `${item.depositAmount} тг — ${formatPaymentStatus(item.paymentStatus)}` : "не рассчитана"}</p>
+      ${item.depositAmount ? `<p><strong>Код в комментарии к переводу:</strong> ${getBookingReferenceCode(item.bookingId)}</p>` : ""}
       ${item.createdByEmail ? `<p><strong>Оформил(а):</strong> ${item.createdByEmail}</p>` : ""}
       <label>Статус</label>
       <select class="booking-status-select" data-booking-id="${item.bookingId}">

@@ -3,6 +3,13 @@ let siteSettings = null;
 let selectedPackage = null;
 let selectedSlot = null;
 
+// Short, human-friendly code the client is asked to write in the Kaspi
+// transfer comment, so a manager can find the matching payment by
+// searching Kaspi history instead of guessing from amount/time alone.
+function getBookingReferenceCode(bookingId) {
+  return (bookingId || "").slice(0, 8).toUpperCase();
+}
+
 const localGallery = [
   {
     title: "Свидание с живой музыкой",
@@ -71,6 +78,7 @@ const slotStatus = document.getElementById("slotStatus");
 const slotGrid = document.getElementById("slotGrid");
 const paymentSection = document.getElementById("paymentSection");
 const paymentAmountText = document.getElementById("paymentAmountText");
+const paymentReferenceCode = document.getElementById("paymentReferenceCode");
 const paymentKaspiLink = document.getElementById("paymentKaspiLink");
 const paymentRequisitesText = document.getElementById("paymentRequisitesText");
 const paymentClaimBtn = document.getElementById("paymentClaimBtn");
@@ -309,6 +317,12 @@ function showPaymentStep(booking) {
   if (hasDeposit && (kaspiPayLink || kaspiRequisites)) {
     paymentAmountText.textContent = `Чтобы подтвердить бронь, переведите предоплату 50% — ${formatMoney(depositAmount)} тг. Если сумма не подставится в Kaspi автоматически — введите её вручную.`;
 
+    if (paymentReferenceCode) {
+      const code = getBookingReferenceCode(booking.bookingId);
+      paymentReferenceCode.innerHTML = `Укажите в комментарии к переводу код: <strong>${code}</strong> — так менеджер быстрее найдёт ваш платёж.`;
+      paymentReferenceCode.classList.toggle("hidden", !code);
+    }
+
     if (kaspiPayLink) {
       paymentKaspiLink.href = kaspiPayLink;
       paymentKaspiLink.classList.remove("hidden");
@@ -322,6 +336,7 @@ function showPaymentStep(booking) {
   } else {
     paymentAmountText.textContent =
       "Заявка создана. Менеджер свяжется с вами, чтобы уточнить детали и оплату.";
+    paymentReferenceCode?.classList.add("hidden");
     paymentKaspiLink.classList.add("hidden");
     paymentRequisitesText.textContent = "";
     paymentClaimBtn.classList.add("hidden");
