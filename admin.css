@@ -351,3 +351,127 @@ button {
   background: #333;
   color: #f5b400;
 }
+
+/* DASHBOARD */
+
+.dashboard-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 14px;
+  margin-bottom: 28px;
+}
+
+.stat-card {
+  background: #181818;
+  border: 1px solid #2e2e2e;
+  border-radius: 16px;
+  padding: 18px;
+}
+
+.stat-card .stat-value {
+  font-size: 28px;
+  font-weight: 900;
+  color: #f5b400;
+  margin-bottom: 4px;
+}
+
+.stat-card .stat-label {
+  color: #bbb;
+  font-size: 13px;
+}
+
+.dashboard-columns {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+.dashboard-columns h3 {
+  color: #f5b400;
+  margin: 0 0 12px;
+}
+
+.calendar-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.calendar-nav button {
+  background: #222;
+  color: #fff;
+  padding: 8px 14px;
+}
+
+.calendar-nav span {
+  font-weight: 700;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.calendar-day {
+  min-height: 62px;
+  background: #181818;
+  border: 1px solid #2e2e2e;
+  border-radius: 10px;
+  padding: 6px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: #ccc;
+}
+
+.calendar-day.empty {
+  background: transparent;
+  border-color: transparent;
+  cursor: default;
+}
+
+.calendar-day.has-bookings {
+  border-color: rgba(245, 180, 0, 0.5);
+}
+
+.calendar-day.selected {
+  background: #f5b400;
+  color: #000;
+}
+
+.calendar-day .calendar-day-count {
+  font-weight: 800;
+  color: #f5b400;
+}
+
+.calendar-day.selected .calendar-day-count {
+  color: #000;
+}
+
+.top-package-row,
+.staff-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid #2e2e2e;
+  color: #ddd;
+  font-size: 14px;
+}
+
+.top-package-row span:last-child,
+.staff-row span:last-child {
+  color: #f5b400;
+  font-weight: 700;
+}
+
+@media (max-width: 900px) {
+  .dashboard-columns {
+    grid-template-columns: 1fr;
+  }
+}

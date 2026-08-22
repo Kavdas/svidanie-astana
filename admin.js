@@ -128,6 +128,7 @@ async function showDashboard() {
     await loadGalleryAdmin();
     await loadSettingsAdmin();
     await loadStaff();
+    await loadDashboard();
   }
 
   if (currentUserRole === "admin" || currentUserRole === "manager") {
@@ -1040,5 +1041,215 @@ document.querySelectorAll(".schedule-range-btn").forEach((button) => {
 });
 
 refreshScheduleBtn?.addEventListener("click", loadSchedule);
+
+const dashboardStats = document.getElementById("dashboardStats");
+const calendarGrid = document.getElementById("calendarGrid");
+const calendarMonthLabel = document.getElementById("calendarMonthLabel");
+const calendarDayBookings = document.getElementById("calendarDayBookings");
+const topPackagesList = document.getElementById("topPackagesList");
+const staffBreakdownList = document.getElementById("staffBreakdownList");
+const refreshDashboardBtn = document.getElementById("refreshDashboardBtn");
+
+let dashboardBookings = [];
+let calendarCurrentMonth = new Date();
+let calendarSelectedDateKey = null;
+
+async function loadDashboard() {
+  if (!dashboardStats) return;
+
+  dashboardStats.innerHTML = "<p>Загружаем дашборд...</p>";
+
+  let stats;
+  let bookingsData;
+
+  try {
+    [stats, bookingsData] = await Promise.all([
+      adminApiRequest("/admin/dashboard"),
+      adminApiRequest("/admin/bookings")
+    ]);
+  } catch (error) {
+    dashboardStats.innerHTML = `<p>Ошибка загрузки дашборда: ${error.message}</p>`;
+    return;
+  }
+
+  dashboardBookings = bookingsData.bookings || [];
+  renderDashboardStats(stats);
+  renderTopPackages(stats.topPackages);
+  renderStaffBreakdown(stats.staffBreakdown);
+  calendarCurrentMonth = new Date();
+  calendarSelectedDateKey = null;
+  calendarDayBookings.innerHTML = "";
+  renderCalendar();
+}
+
+function renderDashboardStats(stats) {
+  dashboardStats.innerHTML = `
+    <div class="stat-card">
+      <div class="stat-value">${stats.totalBookings}</div>
+      <div class="stat-label">Всего активных броней</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">${stats.last7Days}</div>
+      <div class="stat-label">Новых за 7 дней</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">${stats.last30Days}</div>
+      <div class="stat-label">Новых за 30 дней</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">${formatMoney(Number(stats.collectedDeposits || 0))} тг</div>
+      <div class="stat-label">Собрано предоплат</div>
+    </div>
+  `;
+}
+
+function formatMoney(amount) {
+  return new Intl.NumberFormat("ru-RU").format(amount);
+}
+
+function renderTopPackages(topPackages) {
+  if (!topPackages.length) {
+    topPackagesList.innerHTML = "<p>Пока нет данных.</p>";
+    return;
+  }
+
+  topPackagesList.innerHTML = topPackages
+    .map(
+      (item) => `
+    <div class="top-package-row">
+      <span>${item.title}</span>
+      <span>${item.bookingsCount}</span>
+    </div>
+  `
+    )
+    .join("");
+}
+
+function renderStaffBreakdown(staffBreakdown) {
+  if (!staffBreakdown.length) {
+    staffBreakdownList.innerHTML = "<p>Пока никто не оформлял брони через кабинет менеджера.</p>";
+    return;
+  }
+
+  const roleLabels = { admin: "Админ", manager: "Менеджер", organizer: "Организатор" };
+
+  staffBreakdownList.innerHTML = staffBreakdown
+    .map(
+      (item) => `
+    <div class="staff-row">
+      <span>${item.email || "Неизвестно"} (${roleLabels[item.role] || item.role})</span>
+      <span>${item.bookingsCount}</span>
+    </div>
+  `
+    )
+    .join("");
+}
+
+function renderCalendar() {
+  if (!calendarGrid) return;
+
+  const year = calendarCurrentMonth.getFullYear();
+  const month = calendarCurrentMonth.getMonth();
+
+  calendarMonthLabel.textContent = calendarCurrentMonth.toLocaleDateString("ru-RU", {
+    month: "long",
+    year: "numeric"
+  });
+
+  const bookingsByDay = {};
+
+  dashboardBookings.forEach((item) => {
+    if (!item.startAt) return;
+
+    const dateKey = new Date(item.startAt).toLocaleDateString("en-CA", {
+      timeZone: "Asia/Almaty"
+    });
+
+    if (!bookingsByDay[dateKey]) bookingsByDay[dateKey] = [];
+    bookingsByDay[dateKey].push(item);
+  });
+
+  const firstDay = new Date(year, month, 1);
+  const startWeekday = (firstDay.getDay() + 6) % 7;
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  calendarGrid.innerHTML = "";
+
+  for (let i = 0; i < startWeekday; i++) {
+    const empty = document.createElement("div");
+    empty.className = "calendar-day empty";
+    calendarGrid.appendChild(empty);
+  }
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    const dateKey = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    const dayBookings = bookingsByDay[dateKey] || [];
+
+    const cell = document.createElement("div");
+    cell.className =
+      "calendar-day" +
+      (dayBookings.length ? " has-bookings" : "") +
+      (dateKey === calendarSelectedDateKey ? " selected" : "");
+
+    cell.innerHTML = `
+      <span>${day}</span>
+      ${dayBookings.length ? `<span class="calendar-day-count">${dayBookings.length}</span>` : ""}
+    `;
+
+    cell.addEventListener("click", () => {
+      calendarSelectedDateKey = dateKey;
+      renderCalendar();
+      renderCalendarDayBookings(dayBookings, dateKey);
+    });
+
+    calendarGrid.appendChild(cell);
+  }
+}
+
+function renderCalendarDayBookings(dayBookings, dateKey) {
+  if (!calendarDayBookings) return;
+
+  if (!dayBookings.length) {
+    calendarDayBookings.innerHTML = `<p>На ${dateKey} броней нет.</p>`;
+    return;
+  }
+
+  calendarDayBookings.innerHTML =
+    `<h4>${dateKey}</h4>` +
+    dayBookings
+      .map(
+        (item) => `
+    <div class="top-package-row">
+      <span>${formatDateTime(item.startAt)} — ${item.clientName}</span>
+      <span>${item.packageTitle || ""}</span>
+    </div>
+  `
+      )
+      .join("");
+}
+
+document.getElementById("calendarPrevBtn")?.addEventListener("click", () => {
+  calendarCurrentMonth = new Date(
+    calendarCurrentMonth.getFullYear(),
+    calendarCurrentMonth.getMonth() - 1,
+    1
+  );
+  calendarSelectedDateKey = null;
+  calendarDayBookings.innerHTML = "";
+  renderCalendar();
+});
+
+document.getElementById("calendarNextBtn")?.addEventListener("click", () => {
+  calendarCurrentMonth = new Date(
+    calendarCurrentMonth.getFullYear(),
+    calendarCurrentMonth.getMonth() + 1,
+    1
+  );
+  calendarSelectedDateKey = null;
+  calendarDayBookings.innerHTML = "";
+  renderCalendar();
+});
+
+refreshDashboardBtn?.addEventListener("click", loadDashboard);
 
 checkSession();

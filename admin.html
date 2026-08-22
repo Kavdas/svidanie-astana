@@ -33,7 +33,8 @@
       </div>
 
     <div class="admin-tabs">
-        <button class="admin-tab admin-only active" data-panel="packagesPanel">Пакеты</button>
+        <button class="admin-tab admin-only active" data-panel="dashboardPanel">Дашборд</button>
+        <button class="admin-tab admin-only" data-panel="packagesPanel">Пакеты</button>
         <button class="admin-tab admin-only" data-panel="galleryPanel">Галерея</button>
         <button class="admin-tab admin-only" data-panel="settingsPanel">Настройки сайта</button>
         <button class="admin-tab admin-only" data-panel="staffPanel">Сотрудники</button>
@@ -42,7 +43,37 @@
         <button class="admin-tab" data-panel="schedulePanel">Расписание</button>
     </div>
 
-      <section class="admin-panel" id="packagesPanel">
+    <section class="admin-panel" id="dashboardPanel">
+      <div class="panel-header">
+        <h2>Дашборд</h2>
+        <button id="refreshDashboardBtn" type="button">Обновить</button>
+      </div>
+
+      <div class="dashboard-stats" id="dashboardStats"></div>
+
+      <div class="dashboard-columns">
+        <div class="dashboard-calendar-block">
+          <h3>Календарь броней</h3>
+          <div class="calendar-nav">
+            <button id="calendarPrevBtn" type="button">←</button>
+            <span id="calendarMonthLabel"></span>
+            <button id="calendarNextBtn" type="button">→</button>
+          </div>
+          <div class="calendar-grid" id="calendarGrid"></div>
+          <div id="calendarDayBookings"></div>
+        </div>
+
+        <div class="dashboard-side-block">
+          <h3>Топ пакетов</h3>
+          <div id="topPackagesList"></div>
+
+          <h3>Кто сколько оформил</h3>
+          <div id="staffBreakdownList"></div>
+        </div>
+      </div>
+    </section>
+
+      <section class="admin-panel hidden" id="packagesPanel">
         <div class="panel-header">
           <h2>Пакеты</h2>
           <button id="newPackageBtn">Добавить пакет</button>
