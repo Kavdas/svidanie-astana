@@ -10,7 +10,7 @@ import { QueryResultRow } from 'pg';
 import { DatabaseService } from '../database/database.service';
 import { AdminRole } from './admin-auth.guard';
 
-const ALLOWED_ROLES: AdminRole[] = ['admin', 'manager'];
+const ALLOWED_ROLES: AdminRole[] = ['admin', 'manager', 'organizer'];
 
 type StaffRow = QueryResultRow & {
   id: string;
@@ -53,7 +53,9 @@ export class AdminStaffService {
     }
 
     if (!ALLOWED_ROLES.includes(role)) {
-      throw new BadRequestException('role must be "admin" or "manager"');
+      throw new BadRequestException(
+        'role must be "admin", "manager" or "organizer"',
+      );
     }
 
     const supabaseUserId = await this.createSupabaseUser(email, password);
@@ -85,6 +87,53 @@ export class AdminStaffService {
     }
   }
 
+  async resetPassword(id: string, password?: string) {
+    if (!password || password.length < 8) {
+      throw new BadRequestException(
+        'password must be at least 8 characters',
+      );
+    }
+
+    const existing = await this.databaseService.query<{ user_id: string }>(
+      'select user_id from admin_users where id = $1',
+      [id],
+    );
+
+    const userId = existing.rows[0]?.user_id;
+
+    if (!userId) {
+      throw new NotFoundException('Staff member not found');
+    }
+
+    const { supabaseUrl, serviceRoleKey } = this.getSupabaseAdminConfig();
+
+    const response = await fetch(
+      `${supabaseUrl}/auth/v1/admin/users/${userId}`,
+      {
+        method: 'PUT',
+        headers: {
+          apikey: serviceRoleKey,
+          Authorization: `Bearer ${serviceRoleKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ password }),
+      },
+    );
+
+    if (!response.ok) {
+      const data = (await response.json().catch(() => ({}))) as {
+        msg?: string;
+        message?: string;
+      };
+
+      throw new InternalServerErrorException(
+        data.msg || data.message || 'Failed to update password',
+      );
+    }
+
+    return { updated: true };
+  }
+
   async removeStaff(id: string) {
     const result = await this.databaseService.query(
       'delete from admin_users where id = $1 returning id',
@@ -98,7 +147,7 @@ export class AdminStaffService {
     return { removed: true };
   }
 
-  private async createSupabaseUser(email: string, password: string) {
+  private getSupabaseAdminConfig() {
     const supabaseUrl = this.configService.get<string>('SUPABASE_URL');
     const serviceRoleKey = this.configService.get<string>(
       'SUPABASE_SERVICE_ROLE_KEY',
@@ -109,6 +158,12 @@ export class AdminStaffService {
         'Supabase service role key is not configured',
       );
     }
+
+    return { supabaseUrl, serviceRoleKey };
+  }
+
+  private async createSupabaseUser(email: string, password: string) {
+    const { supabaseUrl, serviceRoleKey } = this.getSupabaseAdminConfig();
 
     const response = await fetch(`${supabaseUrl}/auth/v1/admin/users`, {
       method: 'POST',

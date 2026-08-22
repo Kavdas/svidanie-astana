@@ -179,7 +179,7 @@ button {
   margin-top: 10px;
 }
 
-.card-actions button:nth-child(2) {
+.card-actions button:nth-child(2):not(.danger-btn) {
   background: #333;
   color: #fff;
 }

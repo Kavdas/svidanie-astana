@@ -854,13 +854,17 @@ async function loadStaff() {
     const card = document.createElement("div");
     card.className = "admin-package-card";
 
-    const roleLabel = item.role === "admin" ? "Администратор" : "Менеджер";
+    const roleLabels = { admin: "Администратор", manager: "Менеджер", organizer: "Организатор" };
+    const roleLabel = roleLabels[item.role] || item.role;
     const isSelf = item.email?.toLowerCase() === currentUser.email?.toLowerCase();
 
     card.innerHTML = `
       <h3>${item.email}</h3>
       <p><strong>Роль:</strong> ${roleLabel}</p>
       <div class="card-actions">
+        <button type="button" class="staff-password-btn" data-staff-id="${item.id}">
+          Сменить пароль
+        </button>
         <button type="button" class="danger-btn staff-remove-btn" data-staff-id="${item.id}" ${isSelf ? "disabled" : ""}>
           Удалить доступ
         </button>
@@ -868,6 +872,28 @@ async function loadStaff() {
     `;
 
     staffList.appendChild(card);
+  });
+
+  document.querySelectorAll(".staff-password-btn").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const newPassword = prompt("Новый пароль для сотрудника (минимум 8 символов):");
+      if (newPassword === null) return;
+
+      if (newPassword.length < 8) {
+        alert("Пароль должен быть не короче 8 символов.");
+        return;
+      }
+
+      try {
+        await adminApiRequest(`/admin/staff/${button.dataset.staffId}/password`, {
+          method: "PATCH",
+          body: JSON.stringify({ password: newPassword })
+        });
+        alert("Пароль обновлён. Сообщите его сотруднику.");
+      } catch (error) {
+        alert("Ошибка смены пароля: " + error.message);
+      }
+    });
   });
 
   document.querySelectorAll(".staff-remove-btn").forEach((button) => {

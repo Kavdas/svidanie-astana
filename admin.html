@@ -225,12 +225,13 @@
     <label>Email нового сотрудника</label>
     <input type="email" id="staffEmail" placeholder="manager@svidanie.kz" required />
 
-    <label>Временный пароль (сотрудник сможет сменить после входа)</label>
+    <label>Временный пароль (сотрудник войдёт с ним — сменить его сможете только вы, через эту же вкладку)</label>
     <input type="text" id="staffPassword" placeholder="минимум 8 символов" required minlength="8" />
 
     <label>Роль</label>
     <select id="staffRole" required>
-      <option value="manager">Менеджер — только заявки</option>
+      <option value="manager">Менеджер — заявки, оплата, бронирование для клиента</option>
+      <option value="organizer">Организатор — только расписание и подготовка</option>
       <option value="admin">Администратор — полный доступ</option>
     </select>
 

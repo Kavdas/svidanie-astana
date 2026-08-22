@@ -5,6 +5,7 @@ import {
   ForbiddenException,
   Get,
   Param,
+  Patch,
   Post,
   Req,
   UseGuards,
@@ -31,6 +32,16 @@ export class AdminStaffController {
   ) {
     this.assertIsAdmin(request);
     return this.adminStaffService.addStaff(body);
+  }
+
+  @Patch(':id/password')
+  resetPassword(
+    @Req() request: AdminRequest,
+    @Param('id') id: string,
+    @Body() body: { password?: string },
+  ) {
+    this.assertIsAdmin(request);
+    return this.adminStaffService.resetPassword(id, body.password);
   }
 
   @Delete(':id')
