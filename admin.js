@@ -130,8 +130,12 @@ async function showDashboard() {
     await loadStaff();
   }
 
+  if (currentUserRole === "admin" || currentUserRole === "manager") {
+    await loadManagerBookingPackages();
+  }
+
   await loadBookings();
-  await loadManagerBookingPackages();
+  await loadSchedule();
 }
 
 async function loadCurrentUserRole() {
@@ -153,9 +157,15 @@ async function loadCurrentUserRole() {
 
 function applyRoleRestrictions(role) {
   const isAdmin = role === "admin";
+  const isOrganizer = role === "organizer";
+  const canSell = isAdmin || role === "manager";
 
   document.querySelectorAll(".admin-only").forEach((element) => {
     element.classList.toggle("role-visible", isAdmin);
+  });
+
+  document.querySelectorAll(".seller-only").forEach((element) => {
+    element.classList.toggle("role-visible", canSell);
   });
 
   if (!isAdmin) {
@@ -166,8 +176,9 @@ function applyRoleRestrictions(role) {
       panel.classList.add("hidden");
     });
 
-    document.querySelector('[data-panel="bookingsPanel"]')?.classList.add("active");
-    document.getElementById("bookingsPanel")?.classList.remove("hidden");
+    const defaultPanel = isOrganizer ? "schedulePanel" : "bookingsPanel";
+    document.querySelector(`[data-panel="${defaultPanel}"]`)?.classList.add("active");
+    document.getElementById(defaultPanel)?.classList.remove("hidden");
   }
 }
 
@@ -395,19 +406,18 @@ async function loadBookings() {
     return;
   }
 
+  const isOrganizer = currentUserRole === "organizer";
+
   data.bookings.forEach((item) => {
     const card = document.createElement("div");
     card.className = "booking-card";
 
-    card.innerHTML = `
-      <h3>${item.clientName}</h3>
-      <p><strong>Телефон:</strong> ${item.clientPhone}</p>
-      <p><strong>Пакет:</strong> ${item.packageTitle || "Не указан"}</p>
+    const salesBlock = isOrganizer
+      ? ""
+      : `
       <p><strong>Цена:</strong> ${item.packagePrice || "Не указана"}</p>
-      <p><strong>Дата и время:</strong> ${formatDateTime(item.startAt)}</p>
-      <p><strong>Окончание:</strong> ${formatDateTime(item.endAt)}</p>
-      <p><strong>Комментарий:</strong> ${item.comment || "Нет"}</p>
       <p><strong>Предоплата:</strong> ${item.depositAmount ? `${item.depositAmount} тг — ${formatPaymentStatus(item.paymentStatus)}` : "не рассчитана"}</p>
+      ${item.createdByEmail ? `<p><strong>Оформил(а):</strong> ${item.createdByEmail}</p>` : ""}
       <label>Статус</label>
       <select class="booking-status-select" data-booking-id="${item.bookingId}">
         ${renderStatusOptions(item.status)}
@@ -424,6 +434,16 @@ async function loadBookings() {
             </div>`
           : ""
       }
+    `;
+
+    card.innerHTML = `
+      <h3>${item.clientName}</h3>
+      <p><strong>Телефон:</strong> ${item.clientPhone}</p>
+      <p><strong>Пакет:</strong> ${item.packageTitle || "Не указан"}</p>
+      <p><strong>Дата и время:</strong> ${formatDateTime(item.startAt)}</p>
+      <p><strong>Окончание:</strong> ${formatDateTime(item.endAt)}</p>
+      <p><strong>Комментарий:</strong> ${item.comment || "Нет"}</p>
+      ${salesBlock}
     `;
 
     bookingsList.appendChild(card);
@@ -919,7 +939,7 @@ managerBookingForm?.addEventListener("submit", async (event) => {
     : "Бронь оформлена менеджером по телефону.";
 
   try {
-    await apiRequest("/bookings", {
+    await adminApiRequest("/admin/bookings", {
       method: "POST",
       body: JSON.stringify({
         packageId: managerPackageSelect.value,
@@ -934,13 +954,91 @@ managerBookingForm?.addEventListener("submit", async (event) => {
     managerBookingForm.reset();
     resetManagerSlots("Сначала выберите пакет и дату");
     await loadManagerSlots();
-
-    if (currentUserRole) {
-      await loadBookings();
-    }
+    await loadBookings();
+    await loadSchedule();
   } catch (error) {
     alert(error.message || "Не удалось создать бронь");
   }
 });
+
+const scheduleList = document.getElementById("scheduleList");
+const refreshScheduleBtn = document.getElementById("refreshScheduleBtn");
+let currentScheduleRange = "today";
+
+async function loadSchedule() {
+  if (!scheduleList) return;
+
+  scheduleList.innerHTML = "<p>Загружаем расписание...</p>";
+
+  let data;
+
+  try {
+    data = await adminApiRequest(`/admin/bookings/schedule?range=${currentScheduleRange}`);
+  } catch (error) {
+    scheduleList.innerHTML = `<p>Ошибка загрузки расписания: ${error.message}</p>`;
+    return;
+  }
+
+  scheduleList.innerHTML = "";
+
+  if (!data.schedule.length) {
+    scheduleList.innerHTML = "<p>На этот период броней нет.</p>";
+    return;
+  }
+
+  data.schedule.forEach((item) => {
+    const card = document.createElement("div");
+    card.className = "booking-card";
+
+    const checklist = item.includes.length
+      ? `<ul class="schedule-checklist">${item.includes.map((line) => `<li>${line}</li>`).join("")}</ul>`
+      : "";
+
+    card.innerHTML = `
+      <h3>${formatDateTime(item.startAt)} — ${item.packageTitle || "Пакет не указан"}</h3>
+      <p><strong>Клиент:</strong> ${item.clientName} · ${item.clientPhone}</p>
+      <p><strong>Комментарий:</strong> ${item.comment || "Нет"}</p>
+      ${checklist}
+      <p style="margin-top: 10px;">
+        <span class="event-status-badge">${item.eventStatus}</span>
+      </p>
+      <div class="card-actions">
+        <button type="button" class="event-status-btn" data-booking-id="${item.bookingId}" data-status="подготовлено" ${item.eventStatus !== "ожидается" ? "disabled" : ""}>
+          Подготовлено
+        </button>
+        <button type="button" class="event-status-btn" data-booking-id="${item.bookingId}" data-status="проведено" ${item.eventStatus === "проведено" ? "disabled" : ""}>
+          Проведено
+        </button>
+      </div>
+    `;
+
+    scheduleList.appendChild(card);
+  });
+
+  document.querySelectorAll(".event-status-btn").forEach((button) => {
+    button.addEventListener("click", async () => {
+      try {
+        await adminApiRequest(`/admin/bookings/${button.dataset.bookingId}/event-status`, {
+          method: "PATCH",
+          body: JSON.stringify({ eventStatus: button.dataset.status })
+        });
+        await loadSchedule();
+      } catch (error) {
+        alert("Ошибка изменения статуса: " + error.message);
+      }
+    });
+  });
+}
+
+document.querySelectorAll(".schedule-range-btn").forEach((button) => {
+  button.addEventListener("click", async () => {
+    document.querySelectorAll(".schedule-range-btn").forEach((btn) => btn.classList.remove("active"));
+    button.classList.add("active");
+    currentScheduleRange = button.dataset.range;
+    await loadSchedule();
+  });
+});
+
+refreshScheduleBtn?.addEventListener("click", loadSchedule);
 
 checkSession();

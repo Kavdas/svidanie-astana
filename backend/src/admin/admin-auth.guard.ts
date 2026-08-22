@@ -9,11 +9,13 @@ import { ConfigService } from '@nestjs/config';
 import { Request } from 'express';
 import { DatabaseService } from '../database/database.service';
 
-export type AdminRole = 'admin' | 'manager';
+export type AdminRole = 'admin' | 'manager' | 'organizer';
 
 export interface AdminRequest extends Request {
   adminRole?: AdminRole;
   adminUserId?: string;
+  /** admin_users.id (not the Supabase auth user id) — use for FKs like bookings.created_by_staff_id */
+  adminStaffId?: string;
 }
 
 @Injectable()
@@ -55,10 +57,10 @@ export class AdminAuthGuard implements CanActivate {
       throw new UnauthorizedException('Admin authorization failed');
     }
 
-    const staffResult = await this.databaseService.query<{ role: AdminRole }>(
-      'select role from admin_users where user_id = $1 limit 1',
-      [user.id],
-    );
+    const staffResult = await this.databaseService.query<{
+      id: string;
+      role: AdminRole;
+    }>('select id, role from admin_users where user_id = $1 limit 1', [user.id]);
 
     const staffRow = staffResult.rows[0];
 
@@ -68,6 +70,7 @@ export class AdminAuthGuard implements CanActivate {
 
     request.adminRole = staffRow.role;
     request.adminUserId = user.id;
+    request.adminStaffId = staffRow.id;
 
     return true;
   }

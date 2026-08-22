@@ -128,7 +128,7 @@ export class BookingsService {
     return { slots };
   }
 
-  async createBooking(dto: CreateBookingDto) {
+  async createBooking(dto: CreateBookingDto, createdByStaffId: string | null = null) {
     const packageRow = await this.getPackage(dto.packageId);
     const startAt = new Date(dto.startAt);
 
@@ -157,9 +157,10 @@ export class BookingsService {
             location_id,
             status,
             comment,
-            deposit_amount
+            deposit_amount,
+            created_by_staff_id
           )
-          values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+          values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
           returning
             id,
             package_id,
@@ -173,8 +174,8 @@ export class BookingsService {
             comment,
             deposit_amount,
             payment_status,
-            $11::text as package_title,
-            $12::text as package_price
+            $12::text as package_title,
+            $13::text as package_price
         `,
         [
           dto.packageId,
@@ -187,6 +188,7 @@ export class BookingsService {
           NEW_BOOKING_STATUS,
           dto.comment ?? null,
           depositAmount,
+          createdByStaffId,
           packageRow.title,
           packageRow.price == null ? null : String(packageRow.price),
         ],

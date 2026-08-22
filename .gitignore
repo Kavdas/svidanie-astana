@@ -30,3 +30,6 @@ npm-debug.log*
 tmp-*.js
 scratch-*.js
 scratch-*.png
+
+.vercel
+.env*

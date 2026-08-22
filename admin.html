@@ -38,7 +38,8 @@
         <button class="admin-tab admin-only" data-panel="settingsPanel">Настройки сайта</button>
         <button class="admin-tab admin-only" data-panel="staffPanel">Сотрудники</button>
         <button class="admin-tab" data-panel="bookingsPanel">Заявки</button>
-        <button class="admin-tab" data-panel="managerBookingPanel">Забронировать для клиента</button>
+        <button class="admin-tab seller-only" data-panel="managerBookingPanel">Забронировать для клиента</button>
+        <button class="admin-tab" data-panel="schedulePanel">Расписание</button>
     </div>
 
       <section class="admin-panel" id="packagesPanel">
@@ -255,6 +256,19 @@
       <button type="submit">Забронировать выбранное время</button>
     </div>
   </form>
+</section>
+
+<section class="admin-panel hidden" id="schedulePanel">
+  <div class="panel-header">
+    <h2>Расписание</h2>
+    <div class="form-actions">
+      <button id="scheduleTodayBtn" type="button" class="schedule-range-btn active" data-range="today">Сегодня</button>
+      <button id="scheduleWeekBtn" type="button" class="schedule-range-btn" data-range="week">Неделя</button>
+      <button id="refreshScheduleBtn" type="button">Обновить</button>
+    </div>
+  </div>
+
+  <div class="bookings-list" id="scheduleList"></div>
 </section>
     </section>
   </main>
