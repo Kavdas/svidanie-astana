@@ -18,7 +18,7 @@ type ExpenseRow = QueryResultRow & {
   client_name: string | null;
   amount: string;
   comment: string | null;
-  spent_at: string;
+  spent_at: string | Date;
   created_at: Date | string;
 };
 
@@ -175,6 +175,19 @@ export class AdminExpensesService {
     return { expenses: result.rows.map((row) => this.toResponse(row)) };
   }
 
+  /**
+   * node-postgres parses `date` columns into a JS Date at UTC midnight, so
+   * `.toISOString().slice(0, 10)` round-trips back to the original calendar
+   * date. Plain string fallback covers drivers/tests that skip that parsing.
+   */
+  private formatDate(value: string | Date) {
+    if (value instanceof Date) {
+      return value.toISOString().slice(0, 10);
+    }
+
+    return String(value).slice(0, 10);
+  }
+
   private toResponse(row: ExpenseRow) {
     return {
       id: row.id,
@@ -185,7 +198,7 @@ export class AdminExpensesService {
       clientName: row.client_name,
       amount: String(row.amount),
       comment: row.comment,
-      spentAt: String(row.spent_at).slice(0, 10),
+      spentAt: this.formatDate(row.spent_at),
       createdAt: new Date(row.created_at).toISOString(),
     };
   }
