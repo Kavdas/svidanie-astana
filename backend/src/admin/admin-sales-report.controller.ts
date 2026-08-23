@@ -31,7 +31,7 @@ export class AdminSalesReportController {
   async exportXlsx(
     @Req() request: AdminRequest,
     @Query('range') range: string | undefined,
-    @Res({ passthrough: true }) res: Response,
+    @Res() res: Response,
   ) {
     this.assertCanSell(request);
     const buffer = await this.adminSalesReportService.exportXlsx(
@@ -39,13 +39,13 @@ export class AdminSalesReportController {
       isReportRange(range) ? range : 'today',
     );
 
-    res.set({
-      'Content-Type':
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'Content-Disposition': `attachment; filename="sales-${Date.now()}.xlsx"`,
-    });
-
-    return buffer;
+    res
+      .set({
+        'Content-Type':
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'Content-Disposition': `attachment; filename="sales-${Date.now()}.xlsx"`,
+      })
+      .send(buffer);
   }
 
   private assertCanSell(request: AdminRequest) {

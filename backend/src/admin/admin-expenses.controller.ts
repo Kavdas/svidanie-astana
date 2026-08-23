@@ -51,20 +51,20 @@ export class AdminExpensesController {
   async exportXlsx(
     @Req() request: AdminRequest,
     @Query('range') range: string | undefined,
-    @Res({ passthrough: true }) res: Response,
+    @Res() res: Response,
   ) {
     this.assertIsAdmin(request);
     const buffer = await this.adminExpensesService.exportXlsx(
       isReportRange(range) ? range : undefined,
     );
 
-    res.set({
-      'Content-Type':
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'Content-Disposition': `attachment; filename="expenses-${Date.now()}.xlsx"`,
-    });
-
-    return buffer;
+    res
+      .set({
+        'Content-Type':
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'Content-Disposition': `attachment; filename="expenses-${Date.now()}.xlsx"`,
+      })
+      .send(buffer);
   }
 
   @Delete(':id')
