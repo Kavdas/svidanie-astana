@@ -25,6 +25,15 @@ const cancelPackageBtn = document.getElementById("cancelPackageBtn");
 const bookingsList = document.getElementById("bookingsList");
 const refreshBookingsBtn = document.getElementById("refreshBookingsBtn");
 
+const expenseForm = document.getElementById("expenseForm");
+const expenseBookingSelect = document.getElementById("expenseBookingSelect");
+const myExpensesList = document.getElementById("myExpensesList");
+const allExpensesList = document.getElementById("allExpensesList");
+const exportExpensesBtn = document.getElementById("exportExpensesBtn");
+
+const salesReportContent = document.getElementById("salesReportContent");
+const exportSalesBtn = document.getElementById("exportSalesBtn");
+
 const staffForm = document.getElementById("staffForm");
 const staffList = document.getElementById("staffList");
 
@@ -88,6 +97,34 @@ async function adminApiRequest(path, options = {}) {
   return responseData;
 }
 
+async function adminApiDownload(path, filename) {
+  const { data } = await supabaseClient.auth.getSession();
+  const accessToken = data.session?.access_token;
+
+  if (!accessToken) {
+    throw new Error("Сессия администратора не найдена");
+  }
+
+  const response = await fetch(`${window.API_BASE_URL}${path}`, {
+    headers: { Authorization: `Bearer ${accessToken}` }
+  });
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new Error(body.message || "Не удалось скачать файл");
+  }
+
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
 loginForm.addEventListener("submit", async (event) => {
   event.preventDefault();
 
@@ -139,6 +176,16 @@ async function showDashboard() {
 
   if (currentUserRole === "admin" || currentUserRole === "manager") {
     await loadManagerBookingPackages();
+    await loadSalesReport();
+  }
+
+  if (currentUserRole === "admin" || currentUserRole === "organizer") {
+    await loadExpenseBookingOptions();
+    await loadMyExpenses();
+  }
+
+  if (currentUserRole === "admin") {
+    await loadAllExpenses();
   }
 
   await loadBookings();
@@ -173,6 +220,10 @@ function applyRoleRestrictions(role) {
 
   document.querySelectorAll(".seller-only").forEach((element) => {
     element.classList.toggle("role-visible", canSell);
+  });
+
+  document.querySelectorAll(".organizer-only").forEach((element) => {
+    element.classList.toggle("role-visible", isAdmin || isOrganizer);
   });
 
   if (!isAdmin) {
@@ -1152,6 +1203,213 @@ document.querySelectorAll(".schedule-range-btn").forEach((button) => {
 });
 
 refreshScheduleBtn?.addEventListener("click", loadSchedule);
+
+async function loadExpenseBookingOptions() {
+  if (!expenseBookingSelect) return;
+
+  let data;
+
+  try {
+    data = await adminApiRequest("/admin/bookings/schedule?range=week");
+  } catch (error) {
+    return;
+  }
+
+  expenseBookingSelect.innerHTML = '<option value="">Без привязки к брони</option>';
+
+  data.schedule.forEach((item) => {
+    const option = document.createElement("option");
+    option.value = item.bookingId;
+    option.textContent = `${formatDateTime(item.startAt)} — ${item.packageTitle || "Пакет"} (${item.clientName})`;
+    expenseBookingSelect.appendChild(option);
+  });
+}
+
+function renderExpenseCard(item, { showStaff }) {
+  const card = document.createElement("div");
+  card.className = "booking-card";
+
+  card.innerHTML = `
+    <h3>${formatMoney(item.amount)} ₸ — ${item.spentAt}</h3>
+    ${showStaff ? `<p><strong>Организатор:</strong> ${item.staffEmail || "—"}</p>` : ""}
+    <p><strong>Бронь:</strong> ${item.packageTitle ? `${item.packageTitle}${item.clientName ? " — " + item.clientName : ""}` : "Без привязки"}</p>
+    <p><strong>На что:</strong> ${item.comment || "Не указано"}</p>
+    <div class="card-actions">
+      <button type="button" class="danger-btn expense-remove-btn" data-expense-id="${item.id}">Удалить</button>
+    </div>
+  `;
+
+  return card;
+}
+
+function bindExpenseRemoveButtons(container) {
+  container.querySelectorAll(".expense-remove-btn").forEach((button) => {
+    button.addEventListener("click", async () => {
+      if (!confirm("Удалить этот расход?")) return;
+
+      try {
+        await adminApiRequest(`/admin/expenses/${button.dataset.expenseId}`, {
+          method: "DELETE"
+        });
+        await loadMyExpenses();
+        if (currentUserRole === "admin") await loadAllExpenses();
+      } catch (error) {
+        alert("Ошибка удаления: " + error.message);
+      }
+    });
+  });
+}
+
+async function loadMyExpenses() {
+  if (!myExpensesList) return;
+
+  myExpensesList.innerHTML = "<p>Загружаем расходы...</p>";
+
+  let data;
+
+  try {
+    data = await adminApiRequest("/admin/expenses/mine");
+  } catch (error) {
+    myExpensesList.innerHTML = `<p>Ошибка загрузки: ${error.message}</p>`;
+    return;
+  }
+
+  myExpensesList.innerHTML = "";
+
+  if (!data.expenses.length) {
+    myExpensesList.innerHTML = "<p>Расходов пока нет.</p>";
+    return;
+  }
+
+  data.expenses.forEach((item) => {
+    myExpensesList.appendChild(renderExpenseCard(item, { showStaff: false }));
+  });
+
+  bindExpenseRemoveButtons(myExpensesList);
+}
+
+async function loadAllExpenses() {
+  if (!allExpensesList) return;
+
+  allExpensesList.innerHTML = "<p>Загружаем расходы...</p>";
+
+  let data;
+
+  try {
+    data = await adminApiRequest("/admin/expenses");
+  } catch (error) {
+    allExpensesList.innerHTML = `<p>Ошибка загрузки: ${error.message}</p>`;
+    return;
+  }
+
+  allExpensesList.innerHTML = "";
+
+  if (!data.expenses.length) {
+    allExpensesList.innerHTML = "<p>Расходов пока нет.</p>";
+    return;
+  }
+
+  data.expenses.forEach((item) => {
+    allExpensesList.appendChild(renderExpenseCard(item, { showStaff: true }));
+  });
+
+  bindExpenseRemoveButtons(allExpensesList);
+}
+
+expenseForm?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+
+  const amount = document.getElementById("expenseAmount").value;
+  const spentAt = document.getElementById("expenseDate").value || undefined;
+  const bookingId = expenseBookingSelect?.value || undefined;
+  const comment = document.getElementById("expenseComment").value.trim();
+
+  try {
+    await adminApiRequest("/admin/expenses", {
+      method: "POST",
+      body: JSON.stringify({ amount, spentAt, bookingId, comment })
+    });
+    expenseForm.reset();
+    await loadMyExpenses();
+    if (currentUserRole === "admin") await loadAllExpenses();
+  } catch (error) {
+    alert("Ошибка добавления расхода: " + error.message);
+  }
+});
+
+exportExpensesBtn?.addEventListener("click", async () => {
+  try {
+    await adminApiDownload("/admin/expenses/export.xlsx", "raskhody.xlsx");
+  } catch (error) {
+    alert("Ошибка экспорта: " + error.message);
+  }
+});
+
+let currentSalesRange = "today";
+
+async function loadSalesReport() {
+  if (!salesReportContent) return;
+
+  salesReportContent.innerHTML = "<p>Загружаем продажи...</p>";
+
+  let data;
+
+  try {
+    data = await adminApiRequest(`/admin/sales-report?range=${currentSalesRange}`);
+  } catch (error) {
+    salesReportContent.innerHTML = `<p>Ошибка загрузки: ${error.message}</p>`;
+    return;
+  }
+
+  if (!data.packages.length) {
+    salesReportContent.innerHTML = "<p>За этот период продаж нет.</p>";
+    return;
+  }
+
+  const rows = data.packages
+    .map(
+      (pkg) => `
+        <tr>
+          <td>${pkg.packageTitle}</td>
+          <td>${pkg.count}</td>
+          <td>${formatMoney(pkg.totalAmount)} ₸</td>
+        </tr>
+      `
+    )
+    .join("");
+
+  salesReportContent.innerHTML = `
+    <table class="sales-report-table">
+      <thead>
+        <tr><th>Пакет</th><th>Количество</th><th>Сумма</th></tr>
+      </thead>
+      <tbody>${rows}</tbody>
+      <tfoot>
+        <tr><td>Итого</td><td>${data.totalCount}</td><td>${formatMoney(data.totalAmount)} ₸</td></tr>
+      </tfoot>
+    </table>
+  `;
+}
+
+document.querySelectorAll(".sales-range-btn").forEach((button) => {
+  button.addEventListener("click", async () => {
+    document.querySelectorAll(".sales-range-btn").forEach((btn) => btn.classList.remove("active"));
+    button.classList.add("active");
+    currentSalesRange = button.dataset.range;
+    await loadSalesReport();
+  });
+});
+
+exportSalesBtn?.addEventListener("click", async () => {
+  try {
+    await adminApiDownload(
+      `/admin/sales-report/export.xlsx?range=${currentSalesRange}`,
+      `prodazhi-${currentSalesRange}.xlsx`
+    );
+  } catch (error) {
+    alert("Ошибка экспорта: " + error.message);
+  }
+});
 
 const dashboardStats = document.getElementById("dashboardStats");
 const calendarGrid = document.getElementById("calendarGrid");

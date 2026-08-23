@@ -118,6 +118,15 @@ button {
   display: revert;
 }
 
+/* Expense reporting: visible to admins and organizers, hidden from managers. */
+.organizer-only {
+  display: none;
+}
+
+.organizer-only.role-visible {
+  display: revert;
+}
+
 .admin-panel {
   background: #101010;
   border-radius: 22px;
@@ -372,6 +381,35 @@ button {
 .schedule-range-btn.active {
   background: #f5b400;
   color: #000;
+}
+
+.sales-range-btn {
+  background: #222;
+  color: #fff;
+}
+
+.sales-range-btn.active {
+  background: #f5b400;
+  color: #000;
+}
+
+.sales-report-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 16px;
+}
+
+.sales-report-table th,
+.sales-report-table td {
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 1px solid #2a2a2a;
+}
+
+.sales-report-table tfoot td {
+  font-weight: 700;
+  border-bottom: none;
+  border-top: 2px solid #444;
 }
 
 .schedule-checklist {

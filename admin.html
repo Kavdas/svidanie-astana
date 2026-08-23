@@ -48,6 +48,8 @@
         <button class="admin-tab" data-panel="bookingsPanel">Заявки</button>
         <button class="admin-tab seller-only" data-panel="managerBookingPanel">Забронировать для клиента</button>
         <button class="admin-tab" data-panel="schedulePanel">Расписание</button>
+        <button class="admin-tab organizer-only" data-panel="expensesPanel">Расходы</button>
+        <button class="admin-tab seller-only" data-panel="salesReportPanel">Мои продажи</button>
     </div>
 
     <section class="admin-panel" id="dashboardPanel">
@@ -308,6 +310,58 @@
   </div>
 
   <div class="bookings-list" id="scheduleList"></div>
+</section>
+
+<section class="admin-panel hidden" id="expensesPanel">
+  <div class="panel-header">
+    <h2>Расходы</h2>
+    <button id="exportExpensesBtn" type="button" class="admin-only">Скачать Excel</button>
+  </div>
+
+  <p class="field-hint" style="margin-top: -6px;">
+    Впишите, сколько потратили на подготовку — на конкретное свидание из
+    расписания или без привязки, если покупка была общей.
+  </p>
+
+  <form class="package-form" id="expenseForm">
+    <label>Сумма (₸)</label>
+    <input type="number" id="expenseAmount" min="1" step="1" required />
+
+    <label>Дата расхода</label>
+    <input type="date" id="expenseDate" />
+
+    <label>Бронь (необязательно)</label>
+    <select id="expenseBookingSelect">
+      <option value="">Без привязки к брони</option>
+    </select>
+
+    <label>На что потрачено</label>
+    <textarea id="expenseComment" rows="2" placeholder="Цветы, декор, реквизит..."></textarea>
+
+    <button type="submit">Добавить расход</button>
+  </form>
+
+  <h3>Мои расходы</h3>
+  <div class="bookings-list" id="myExpensesList"></div>
+
+  <div class="admin-only" id="allExpensesBlock">
+    <h3>Расходы всех организаторов</h3>
+    <div class="bookings-list" id="allExpensesList"></div>
+  </div>
+</section>
+
+<section class="admin-panel hidden" id="salesReportPanel">
+  <div class="panel-header">
+    <h2>Мои продажи</h2>
+    <div class="form-actions">
+      <button class="sales-range-btn active" type="button" data-range="today">Сегодня</button>
+      <button class="sales-range-btn" type="button" data-range="week">Неделя</button>
+      <button class="sales-range-btn" type="button" data-range="month">Месяц</button>
+      <button id="exportSalesBtn" type="button">Скачать Excel</button>
+    </div>
+  </div>
+
+  <div id="salesReportContent"></div>
 </section>
     </section>
   </main>
