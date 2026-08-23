@@ -26,7 +26,13 @@ export class AdminExpensesController {
   createExpense(
     @Req() request: AdminRequest,
     @Body()
-    body: { amount?: number | string; comment?: string; bookingId?: string; spentAt?: string },
+    body: {
+      amount?: number | string;
+      category?: string;
+      comment?: string;
+      bookingId?: string;
+      spentAt?: string;
+    },
   ) {
     this.assertCanReportExpenses(request);
     return this.adminExpensesService.createExpense(request.adminStaffId!, body);

@@ -9,6 +9,18 @@ import { QueryResultRow } from 'pg';
 import { DatabaseService } from '../database/database.service';
 import { getReportRangeBounds, ReportRange } from './report-range.util';
 
+export const EXPENSE_CATEGORIES = [
+  'Лепестки',
+  'Еда',
+  'Десерты',
+  'Такси',
+  'Фонтаны',
+  'Доставка',
+  'Другое',
+] as const;
+
+export type ExpenseCategory = (typeof EXPENSE_CATEGORIES)[number];
+
 type ExpenseRow = QueryResultRow & {
   id: string;
   staff_id: string;
@@ -17,6 +29,7 @@ type ExpenseRow = QueryResultRow & {
   package_title: string | null;
   client_name: string | null;
   amount: string;
+  category: string;
   comment: string | null;
   spent_at: string | Date;
   created_at: Date | string;
@@ -30,6 +43,7 @@ export class AdminExpensesService {
     staffId: string,
     params: {
       amount?: number | string;
+      category?: string;
       comment?: string;
       bookingId?: string;
       spentAt?: string;
@@ -39,6 +53,14 @@ export class AdminExpensesService {
 
     if (!params.amount || Number.isNaN(amount) || amount <= 0) {
       throw new BadRequestException('amount must be a positive number');
+    }
+
+    const category = params.category as ExpenseCategory;
+
+    if (!EXPENSE_CATEGORIES.includes(category)) {
+      throw new BadRequestException(
+        `category must be one of: ${EXPENSE_CATEGORIES.join(', ')}`,
+      );
     }
 
     if (params.bookingId) {
@@ -54,14 +76,15 @@ export class AdminExpensesService {
 
     const result = await this.databaseService.query<ExpenseRow>(
       `
-        insert into expenses (staff_id, booking_id, amount, comment, spent_at)
-        values ($1, $2, $3, $4, coalesce($5::date, (now() at time zone 'Asia/Almaty')::date))
-        returning id, staff_id, booking_id, amount, comment, spent_at, created_at
+        insert into expenses (staff_id, booking_id, amount, category, comment, spent_at)
+        values ($1, $2, $3, $4, $5, coalesce($6::date, (now() at time zone 'Asia/Almaty')::date))
+        returning id, staff_id, booking_id, amount, category, comment, spent_at, created_at
       `,
       [
         staffId,
         params.bookingId ?? null,
         amount,
+        category,
         params.comment?.trim() || null,
         params.spentAt ?? null,
       ],
@@ -99,12 +122,14 @@ export class AdminExpensesService {
 
   async exportXlsx(range?: ReportRange) {
     const { expenses } = await this.listAll(range);
+    const byCategory = this.sumByCategory(expenses);
 
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet('Расходы');
 
     sheet.columns = [
       { header: 'Дата', key: 'date', width: 14 },
+      { header: 'Категория', key: 'category', width: 16 },
       { header: 'Организатор', key: 'staff', width: 28 },
       { header: 'Бронь', key: 'booking', width: 34 },
       { header: 'Сумма', key: 'amount', width: 14 },
@@ -120,6 +145,7 @@ export class AdminExpensesService {
 
       sheet.addRow({
         date: expense.spentAt,
+        category: expense.category,
         staff: expense.staffEmail || '—',
         booking: expense.packageTitle
           ? `${expense.packageTitle}${expense.clientName ? ' — ' + expense.clientName : ''}`
@@ -132,9 +158,36 @@ export class AdminExpensesService {
     sheet.addRow({});
     const totalRow = sheet.addRow({ staff: 'Итого', amount: total });
     totalRow.font = { bold: true };
+
+    sheet.addRow({});
+    const byCategoryHeaderRow = sheet.addRow({ category: 'По категориям' });
+    byCategoryHeaderRow.font = { bold: true };
+
+    for (const row of byCategory) {
+      sheet.addRow({ category: row.category, amount: row.total });
+    }
+
     sheet.getColumn('amount').numFmt = '#,##0';
 
     return workbook.xlsx.writeBuffer();
+  }
+
+  private sumByCategory(expenses: ReturnType<AdminExpensesService['toResponse']>[]) {
+    const totals = new Map<string, number>();
+
+    for (const category of EXPENSE_CATEGORIES) {
+      totals.set(category, 0);
+    }
+
+    for (const expense of expenses) {
+      const current = totals.get(expense.category) ?? 0;
+      totals.set(expense.category, current + Number(expense.amount));
+    }
+
+    return Array.from(totals.entries())
+      .filter(([, total]) => total > 0)
+      .map(([category, total]) => ({ category, total }))
+      .sort((a, b) => b.total - a.total);
   }
 
   private async list(range?: ReportRange, staffId?: string) {
@@ -159,7 +212,8 @@ export class AdminExpensesService {
     const result = await this.databaseService.query<ExpenseRow>(
       `
         select
-          e.id, e.staff_id, e.booking_id, e.amount, e.comment, e.spent_at, e.created_at,
+          e.id, e.staff_id, e.booking_id, e.amount, e.category, e.comment,
+          e.spent_at, e.created_at,
           s.email as staff_email, p.title as package_title, b.client_name
         from expenses e
         left join admin_users s on s.id = e.staff_id
@@ -197,6 +251,7 @@ export class AdminExpensesService {
       packageTitle: row.package_title,
       clientName: row.client_name,
       amount: String(row.amount),
+      category: row.category,
       comment: row.comment,
       spentAt: this.formatDate(row.spent_at),
       createdAt: new Date(row.created_at).toISOString(),

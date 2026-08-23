@@ -1230,16 +1230,42 @@ function renderExpenseCard(item, { showStaff }) {
   card.className = "booking-card";
 
   card.innerHTML = `
-    <h3>${formatMoney(item.amount)} ₸ — ${item.spentAt}</h3>
+    <h3>${formatMoney(item.amount)} ₸ — ${item.category}</h3>
+    <p><strong>Дата:</strong> ${item.spentAt}</p>
     ${showStaff ? `<p><strong>Организатор:</strong> ${item.staffEmail || "—"}</p>` : ""}
     <p><strong>Бронь:</strong> ${item.packageTitle ? `${item.packageTitle}${item.clientName ? " — " + item.clientName : ""}` : "Без привязки"}</p>
-    <p><strong>На что:</strong> ${item.comment || "Не указано"}</p>
+    <p><strong>Комментарий:</strong> ${item.comment || "Не указано"}</p>
     <div class="card-actions">
       <button type="button" class="danger-btn expense-remove-btn" data-expense-id="${item.id}">Удалить</button>
     </div>
   `;
 
   return card;
+}
+
+function renderExpenseCategoryTotals(expenses) {
+  const totals = new Map();
+
+  expenses.forEach((item) => {
+    totals.set(item.category, (totals.get(item.category) || 0) + Number(item.amount));
+  });
+
+  const rows = Array.from(totals.entries()).sort((a, b) => b[1] - a[1]);
+  const grandTotal = rows.reduce((sum, [, amount]) => sum + amount, 0);
+
+  const cells = rows
+    .map(([category, amount]) => `<tr><td>${category}</td><td>${formatMoney(amount)} ₸</td></tr>`)
+    .join("");
+
+  const table = document.createElement("table");
+  table.className = "sales-report-table";
+  table.innerHTML = `
+    <thead><tr><th>Категория</th><th>Сумма</th></tr></thead>
+    <tbody>${cells}</tbody>
+    <tfoot><tr><td>Итого</td><td>${formatMoney(grandTotal)} ₸</td></tr></tfoot>
+  `;
+
+  return table;
 }
 
 function bindExpenseRemoveButtons(container) {
@@ -1281,6 +1307,8 @@ async function loadMyExpenses() {
     return;
   }
 
+  myExpensesList.appendChild(renderExpenseCategoryTotals(data.expenses));
+
   data.expenses.forEach((item) => {
     myExpensesList.appendChild(renderExpenseCard(item, { showStaff: false }));
   });
@@ -1309,6 +1337,8 @@ async function loadAllExpenses() {
     return;
   }
 
+  allExpensesList.appendChild(renderExpenseCategoryTotals(data.expenses));
+
   data.expenses.forEach((item) => {
     allExpensesList.appendChild(renderExpenseCard(item, { showStaff: true }));
   });
@@ -1320,6 +1350,7 @@ expenseForm?.addEventListener("submit", async (event) => {
   event.preventDefault();
 
   const amount = document.getElementById("expenseAmount").value;
+  const category = document.getElementById("expenseCategory").value;
   const spentAt = document.getElementById("expenseDate").value || undefined;
   const bookingId = expenseBookingSelect?.value || undefined;
   const comment = document.getElementById("expenseComment").value.trim();
@@ -1327,7 +1358,7 @@ expenseForm?.addEventListener("submit", async (event) => {
   try {
     await adminApiRequest("/admin/expenses", {
       method: "POST",
-      body: JSON.stringify({ amount, spentAt, bookingId, comment })
+      body: JSON.stringify({ amount, category, spentAt, bookingId, comment })
     });
     expenseForm.reset();
     await loadMyExpenses();

@@ -324,6 +324,18 @@
   </p>
 
   <form class="package-form" id="expenseForm">
+    <label>Категория</label>
+    <select id="expenseCategory" required>
+      <option value="" disabled selected>Выберите категорию</option>
+      <option value="Лепестки">Лепестки</option>
+      <option value="Еда">Еда</option>
+      <option value="Десерты">Десерты</option>
+      <option value="Такси">Такси</option>
+      <option value="Фонтаны">Фонтаны</option>
+      <option value="Доставка">Доставка</option>
+      <option value="Другое">Другое</option>
+    </select>
+
     <label>Сумма (₸)</label>
     <input type="number" id="expenseAmount" min="1" step="1" required />
 
