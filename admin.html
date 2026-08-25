@@ -213,12 +213,21 @@
     <label>Telegram Chat ID менеджера(ов) для уведомлений о новых заявках</label>
     <input type="text" id="settingsManagerChatIds" placeholder="976674419" />
     <p class="field-hint">
-      Сюда бот присылает уведомления о новых бронях. Если менеджер поменялся —
-      попросите нового менеджера написать боту
+      Сюда бот присылает уведомления о новых бронях и об оплате. Если менеджер
+      поменялся — попросите нового менеджера написать боту
       <strong>@svidanie_astana_manager_bot</strong> (или переслать ему любое
       сообщение из бота @userinfobot, чтобы узнать свой chat id) и вставьте его
       сюда. Для нескольких менеджеров укажите ID через запятую. Оставьте поле
       пустым, чтобы использовать значение из настроек сервера по умолчанию.
+    </p>
+
+    <label>Telegram Chat ID организатора(ов)</label>
+    <input type="text" id="settingsOrganizerChatIds" placeholder="976674419" />
+    <p class="field-hint">
+      Сюда бот присылает те же уведомления о новых бронях, плюс отдельную
+      утреннюю сводку в 08:00 со всеми бронями на сегодня одним сообщением —
+      чтобы организатор ничего не забыл подготовить. Chat id узнаётся так же,
+      через @userinfobot. Для нескольких организаторов — через запятую.
     </p>
 
     <button type="submit">Сохранить настройки</button>
@@ -315,30 +324,15 @@
 <section class="admin-panel hidden" id="expensesPanel">
   <div class="panel-header">
     <h2>Расходы</h2>
-    <button id="exportExpensesBtn" type="button" class="admin-only">Скачать Excel</button>
   </div>
 
   <p class="field-hint" style="margin-top: -6px;">
-    Впишите, сколько потратили на подготовку — на конкретное свидание из
-    расписания или без привязки, если покупка была общей.
+    Заполните только те категории, на которые реально потратили — остальные
+    поля можно оставить пустыми. Одно нажатие «Добавить» сохранит сразу все
+    заполненные строки.
   </p>
 
   <form class="package-form" id="expenseForm">
-    <label>Категория</label>
-    <select id="expenseCategory" required>
-      <option value="" disabled selected>Выберите категорию</option>
-      <option value="Лепестки">Лепестки</option>
-      <option value="Еда">Еда</option>
-      <option value="Десерты">Десерты</option>
-      <option value="Такси">Такси</option>
-      <option value="Фонтаны">Фонтаны</option>
-      <option value="Доставка">Доставка</option>
-      <option value="Другое">Другое</option>
-    </select>
-
-    <label>Сумма (₸)</label>
-    <input type="number" id="expenseAmount" min="1" step="1" required />
-
     <label>Дата расхода</label>
     <input type="date" id="expenseDate" />
 
@@ -347,17 +341,64 @@
       <option value="">Без привязки к брони</option>
     </select>
 
-    <label>На что потрачено</label>
-    <textarea id="expenseComment" rows="2" placeholder="Цветы, декор, реквизит..."></textarea>
+    <label>Комментарий (необязательно, общий для всех строк ниже)</label>
+    <textarea id="expenseComment" rows="2" placeholder="Например: подготовка к свиданию Алии"></textarea>
 
-    <button type="submit">Добавить расход</button>
+    <label>Суммы по категориям (₸)</label>
+    <div class="expense-batch-grid">
+      <div class="expense-batch-row">
+        <span>Лепестки</span>
+        <input type="number" min="0" step="1" class="expense-amount-input" data-category="Лепестки" placeholder="0" />
+      </div>
+      <div class="expense-batch-row">
+        <span>Еда</span>
+        <input type="number" min="0" step="1" class="expense-amount-input" data-category="Еда" placeholder="0" />
+      </div>
+      <div class="expense-batch-row">
+        <span>Десерты</span>
+        <input type="number" min="0" step="1" class="expense-amount-input" data-category="Десерты" placeholder="0" />
+      </div>
+      <div class="expense-batch-row">
+        <span>Такси</span>
+        <input type="number" min="0" step="1" class="expense-amount-input" data-category="Такси" placeholder="0" />
+      </div>
+      <div class="expense-batch-row">
+        <span>Фонтаны</span>
+        <input type="number" min="0" step="1" class="expense-amount-input" data-category="Фонтаны" placeholder="0" />
+      </div>
+      <div class="expense-batch-row">
+        <span>Доставка</span>
+        <input type="number" min="0" step="1" class="expense-amount-input" data-category="Доставка" placeholder="0" />
+      </div>
+      <div class="expense-batch-row">
+        <span>Другое</span>
+        <input type="number" min="0" step="1" class="expense-amount-input" data-category="Другое" placeholder="0" />
+      </div>
+    </div>
+
+    <button type="submit">Добавить расходы</button>
   </form>
 
   <h3>Мои расходы</h3>
+  <div class="form-actions" id="myExpenseFilterActions">
+    <button type="button" class="expense-filter-btn active" data-mode="all">Всё время</button>
+    <button type="button" class="expense-filter-btn" data-mode="day">За день</button>
+    <button type="button" class="expense-filter-btn" data-mode="month">За месяц</button>
+    <input type="date" id="myExpenseFilterDay" class="hidden" />
+    <input type="month" id="myExpenseFilterMonth" class="hidden" />
+  </div>
   <div class="bookings-list" id="myExpensesList"></div>
 
   <div class="admin-only" id="allExpensesBlock">
     <h3>Расходы всех организаторов</h3>
+    <div class="form-actions" id="allExpenseFilterActions">
+      <button type="button" class="expense-filter-btn active" data-mode="all">Всё время</button>
+      <button type="button" class="expense-filter-btn" data-mode="day">За день</button>
+      <button type="button" class="expense-filter-btn" data-mode="month">За месяц</button>
+      <input type="date" id="allExpenseFilterDay" class="hidden" />
+      <input type="month" id="allExpenseFilterMonth" class="hidden" />
+      <button id="exportExpensesBtn" type="button">Скачать Excel</button>
+    </div>
     <div class="bookings-list" id="allExpensesList"></div>
   </div>
 </section>

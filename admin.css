@@ -393,6 +393,44 @@ button {
   color: #000;
 }
 
+.expense-filter-btn {
+  background: #222;
+  color: #fff;
+}
+
+.expense-filter-btn.active {
+  background: #f5b400;
+  color: #000;
+}
+
+.expense-batch-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px;
+  margin: 6px 0 16px;
+}
+
+.expense-batch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: #151515;
+  border: 1px solid #2a2a2a;
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.expense-batch-row span {
+  color: #ddd;
+  font-size: 14px;
+}
+
+.expense-batch-row input {
+  width: 90px;
+  text-align: right;
+}
+
 .sales-report-table {
   width: 100%;
   border-collapse: collapse;

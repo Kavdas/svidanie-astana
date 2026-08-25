@@ -14,8 +14,8 @@ import {
 import type { Response } from 'express';
 import { AdminAuthGuard } from './admin-auth.guard';
 import type { AdminRequest } from './admin-auth.guard';
-import { AdminExpensesService } from './admin-expenses.service';
-import { isReportRange } from './report-range.util';
+import { AdminExpensesService, ExpenseFilter } from './admin-expenses.service';
+import { isReportRange, isValidDayString, isValidMonthString } from './report-range.util';
 
 @UseGuards(AdminAuthGuard)
 @Controller('admin/expenses')
@@ -38,30 +38,57 @@ export class AdminExpensesController {
     return this.adminExpensesService.createExpense(request.adminStaffId!, body);
   }
 
+  @Post('batch')
+  createExpenseBatch(
+    @Req() request: AdminRequest,
+    @Body()
+    body: {
+      bookingId?: string;
+      spentAt?: string;
+      comment?: string;
+      items?: { category?: string; amount?: number | string }[];
+    },
+  ) {
+    this.assertCanReportExpenses(request);
+    return this.adminExpensesService.createExpenseBatch(request.adminStaffId!, body);
+  }
+
   @Get('mine')
-  listMine(@Req() request: AdminRequest, @Query('range') range?: string) {
+  listMine(
+    @Req() request: AdminRequest,
+    @Query('range') range?: string,
+    @Query('day') day?: string,
+    @Query('month') month?: string,
+  ) {
     this.assertCanReportExpenses(request);
     return this.adminExpensesService.listMine(
       request.adminStaffId!,
-      isReportRange(range) ? range : undefined,
+      this.parseFilter(range, day, month),
     );
   }
 
   @Get()
-  listAll(@Req() request: AdminRequest, @Query('range') range?: string) {
+  listAll(
+    @Req() request: AdminRequest,
+    @Query('range') range?: string,
+    @Query('day') day?: string,
+    @Query('month') month?: string,
+  ) {
     this.assertIsAdmin(request);
-    return this.adminExpensesService.listAll(isReportRange(range) ? range : undefined);
+    return this.adminExpensesService.listAll(this.parseFilter(range, day, month));
   }
 
   @Get('export.xlsx')
   async exportXlsx(
     @Req() request: AdminRequest,
     @Query('range') range: string | undefined,
+    @Query('day') day: string | undefined,
+    @Query('month') month: string | undefined,
     @Res() res: Response,
   ) {
     this.assertIsAdmin(request);
     const buffer = await this.adminExpensesService.exportXlsx(
-      isReportRange(range) ? range : undefined,
+      this.parseFilter(range, day, month),
     );
 
     res
@@ -81,6 +108,22 @@ export class AdminExpensesController {
       request.adminStaffId!,
       request.adminRole === 'admin',
     );
+  }
+
+  private parseFilter(
+    range?: string,
+    day?: string,
+    month?: string,
+  ): ExpenseFilter {
+    if (isValidDayString(day)) {
+      return { day };
+    }
+
+    if (isValidMonthString(month)) {
+      return { month };
+    }
+
+    return { range: isReportRange(range) ? range : undefined };
   }
 
   private assertCanReportExpenses(request: AdminRequest) {

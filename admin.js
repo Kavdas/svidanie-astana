@@ -803,6 +803,7 @@ async function loadSettingsAdmin() {
   document.getElementById("settingsAddress").value = data.address || "";
   document.getElementById("settingsWorkingHours").value = data.working_hours || "";
   document.getElementById("settingsManagerChatIds").value = data.manager_chat_ids || "";
+  document.getElementById("settingsOrganizerChatIds").value = data.organizer_chat_ids || "";
   document.getElementById("settingsKaspiRequisites").value = data.kaspi_requisites || "";
   document.getElementById("settingsKaspiPayLink").value = data.kaspi_pay_link || "";
 }
@@ -826,6 +827,7 @@ settingsForm?.addEventListener("submit", async (event) => {
     address: document.getElementById("settingsAddress").value.trim(),
     working_hours: document.getElementById("settingsWorkingHours").value.trim(),
     manager_chat_ids: document.getElementById("settingsManagerChatIds").value.trim() || null,
+    organizer_chat_ids: document.getElementById("settingsOrganizerChatIds").value.trim() || null,
     kaspi_requisites: document.getElementById("settingsKaspiRequisites").value.trim() || null,
     kaspi_pay_link: document.getElementById("settingsKaspiPayLink").value.trim() || null,
     updated_at: new Date().toISOString()
@@ -1286,6 +1288,44 @@ function bindExpenseRemoveButtons(container) {
   });
 }
 
+const myExpenseFilter = { mode: "all", day: "", month: "" };
+const allExpenseFilter = { mode: "all", day: "", month: "" };
+
+function buildExpenseQuery(filter) {
+  if (filter.mode === "day" && filter.day) return `?day=${filter.day}`;
+  if (filter.mode === "month" && filter.month) return `?month=${filter.month}`;
+  return "";
+}
+
+function setupExpenseFilterButtons(containerId, dayInputId, monthInputId, filterState, onChange) {
+  const container = document.getElementById(containerId);
+  const dayInput = document.getElementById(dayInputId);
+  const monthInput = document.getElementById(monthInputId);
+
+  if (!container) return;
+
+  container.querySelectorAll(".expense-filter-btn").forEach((button) => {
+    button.addEventListener("click", async () => {
+      container.querySelectorAll(".expense-filter-btn").forEach((btn) => btn.classList.remove("active"));
+      button.classList.add("active");
+      filterState.mode = button.dataset.mode;
+      dayInput?.classList.toggle("hidden", filterState.mode !== "day");
+      monthInput?.classList.toggle("hidden", filterState.mode !== "month");
+      await onChange();
+    });
+  });
+
+  dayInput?.addEventListener("change", async () => {
+    filterState.day = dayInput.value;
+    if (filterState.mode === "day") await onChange();
+  });
+
+  monthInput?.addEventListener("change", async () => {
+    filterState.month = monthInput.value;
+    if (filterState.mode === "month") await onChange();
+  });
+}
+
 async function loadMyExpenses() {
   if (!myExpensesList) return;
 
@@ -1294,7 +1334,7 @@ async function loadMyExpenses() {
   let data;
 
   try {
-    data = await adminApiRequest("/admin/expenses/mine");
+    data = await adminApiRequest(`/admin/expenses/mine${buildExpenseQuery(myExpenseFilter)}`);
   } catch (error) {
     myExpensesList.innerHTML = `<p>Ошибка загрузки: ${error.message}</p>`;
     return;
@@ -1324,7 +1364,7 @@ async function loadAllExpenses() {
   let data;
 
   try {
-    data = await adminApiRequest("/admin/expenses");
+    data = await adminApiRequest(`/admin/expenses${buildExpenseQuery(allExpenseFilter)}`);
   } catch (error) {
     allExpensesList.innerHTML = `<p>Ошибка загрузки: ${error.message}</p>`;
     return;
@@ -1349,28 +1389,41 @@ async function loadAllExpenses() {
 expenseForm?.addEventListener("submit", async (event) => {
   event.preventDefault();
 
-  const amount = document.getElementById("expenseAmount").value;
-  const category = document.getElementById("expenseCategory").value;
   const spentAt = document.getElementById("expenseDate").value || undefined;
   const bookingId = expenseBookingSelect?.value || undefined;
   const comment = document.getElementById("expenseComment").value.trim();
 
+  const items = Array.from(document.querySelectorAll(".expense-amount-input"))
+    .map((input) => ({ category: input.dataset.category, amount: input.value }))
+    .filter((item) => Number(item.amount) > 0);
+
+  if (!items.length) {
+    alert("Заполните хотя бы одну сумму по категории.");
+    return;
+  }
+
   try {
-    await adminApiRequest("/admin/expenses", {
+    await adminApiRequest("/admin/expenses/batch", {
       method: "POST",
-      body: JSON.stringify({ amount, category, spentAt, bookingId, comment })
+      body: JSON.stringify({ spentAt, bookingId, comment, items })
     });
     expenseForm.reset();
     await loadMyExpenses();
     if (currentUserRole === "admin") await loadAllExpenses();
   } catch (error) {
-    alert("Ошибка добавления расхода: " + error.message);
+    alert("Ошибка добавления расходов: " + error.message);
   }
 });
 
+setupExpenseFilterButtons("myExpenseFilterActions", "myExpenseFilterDay", "myExpenseFilterMonth", myExpenseFilter, loadMyExpenses);
+setupExpenseFilterButtons("allExpenseFilterActions", "allExpenseFilterDay", "allExpenseFilterMonth", allExpenseFilter, loadAllExpenses);
+
 exportExpensesBtn?.addEventListener("click", async () => {
   try {
-    await adminApiDownload("/admin/expenses/export.xlsx", "raskhody.xlsx");
+    await adminApiDownload(
+      `/admin/expenses/export.xlsx${buildExpenseQuery(allExpenseFilter)}`,
+      "raskhody.xlsx"
+    );
   } catch (error) {
     alert("Ошибка экспорта: " + error.message);
   }

@@ -7,7 +7,12 @@ import {
 import ExcelJS from 'exceljs';
 import { QueryResultRow } from 'pg';
 import { DatabaseService } from '../database/database.service';
-import { getReportRangeBounds, ReportRange } from './report-range.util';
+import {
+  getExactDayBounds,
+  getExactMonthBounds,
+  getReportRangeBounds,
+  ReportRange,
+} from './report-range.util';
 
 export const EXPENSE_CATEGORIES = [
   'Лепестки',
@@ -20,6 +25,10 @@ export const EXPENSE_CATEGORIES = [
 ] as const;
 
 export type ExpenseCategory = (typeof EXPENSE_CATEGORIES)[number];
+
+/** At most one of these should be set — day/month pick an exact calendar
+ * period, range keeps the older "today/week/month-to-date" quick filters. */
+export type ExpenseFilter = { range?: ReportRange; day?: string; month?: string };
 
 type ExpenseRow = QueryResultRow & {
   id: string;
@@ -49,56 +58,35 @@ export class AdminExpensesService {
       spentAt?: string;
     },
   ) {
-    const amount = Number(params.amount);
+    const created = await this.insertExpenses(staffId, {
+      bookingId: params.bookingId,
+      spentAt: params.spentAt,
+      comment: params.comment,
+      items: [{ category: params.category, amount: params.amount }],
+    });
 
-    if (!params.amount || Number.isNaN(amount) || amount <= 0) {
-      throw new BadRequestException('amount must be a positive number');
-    }
-
-    const category = params.category as ExpenseCategory;
-
-    if (!EXPENSE_CATEGORIES.includes(category)) {
-      throw new BadRequestException(
-        `category must be one of: ${EXPENSE_CATEGORIES.join(', ')}`,
-      );
-    }
-
-    if (params.bookingId) {
-      const booking = await this.databaseService.query(
-        'select id from bookings where id = $1',
-        [params.bookingId],
-      );
-
-      if (!booking.rows[0]) {
-        throw new BadRequestException('booking not found');
-      }
-    }
-
-    const result = await this.databaseService.query<ExpenseRow>(
-      `
-        insert into expenses (staff_id, booking_id, amount, category, comment, spent_at)
-        values ($1, $2, $3, $4, $5, coalesce($6::date, (now() at time zone 'Asia/Almaty')::date))
-        returning id, staff_id, booking_id, amount, category, comment, spent_at, created_at
-      `,
-      [
-        staffId,
-        params.bookingId ?? null,
-        amount,
-        category,
-        params.comment?.trim() || null,
-        params.spentAt ?? null,
-      ],
-    );
-
-    return this.toResponse(result.rows[0]);
+    return created[0];
   }
 
-  async listMine(staffId: string, range?: ReportRange) {
-    return this.list(range, staffId);
+  async createExpenseBatch(
+    staffId: string,
+    params: {
+      bookingId?: string;
+      spentAt?: string;
+      comment?: string;
+      items?: { category?: string; amount?: number | string }[];
+    },
+  ) {
+    const expenses = await this.insertExpenses(staffId, params);
+    return { expenses };
   }
 
-  async listAll(range?: ReportRange) {
-    return this.list(range);
+  async listMine(staffId: string, filter: ExpenseFilter) {
+    return this.list(filter, staffId);
+  }
+
+  async listAll(filter: ExpenseFilter) {
+    return this.list(filter);
   }
 
   async removeExpense(id: string, requesterStaffId: string, isAdmin: boolean) {
@@ -120,8 +108,8 @@ export class AdminExpensesService {
     return { removed: true };
   }
 
-  async exportXlsx(range?: ReportRange) {
-    const { expenses } = await this.listAll(range);
+  async exportXlsx(filter: ExpenseFilter) {
+    const { expenses } = await this.listAll(filter);
     const byCategory = this.sumByCategory(expenses);
 
     const workbook = new ExcelJS.Workbook();
@@ -172,6 +160,67 @@ export class AdminExpensesService {
     return workbook.xlsx.writeBuffer();
   }
 
+  private async insertExpenses(
+    staffId: string,
+    params: {
+      bookingId?: string;
+      spentAt?: string;
+      comment?: string;
+      items?: { category?: string; amount?: number | string }[];
+    },
+  ) {
+    const items = (params.items || [])
+      .map((item) => ({ category: item.category, amount: Number(item.amount) }))
+      .filter((item) => item.amount && !Number.isNaN(item.amount) && item.amount > 0);
+
+    if (items.length === 0) {
+      throw new BadRequestException('at least one expense amount is required');
+    }
+
+    for (const item of items) {
+      if (!EXPENSE_CATEGORIES.includes(item.category as ExpenseCategory)) {
+        throw new BadRequestException(
+          `category must be one of: ${EXPENSE_CATEGORIES.join(', ')}`,
+        );
+      }
+    }
+
+    if (params.bookingId) {
+      const booking = await this.databaseService.query(
+        'select id from bookings where id = $1',
+        [params.bookingId],
+      );
+
+      if (!booking.rows[0]) {
+        throw new BadRequestException('booking not found');
+      }
+    }
+
+    const created: ReturnType<AdminExpensesService['toResponse']>[] = [];
+
+    for (const item of items) {
+      const result = await this.databaseService.query<ExpenseRow>(
+        `
+          insert into expenses (staff_id, booking_id, amount, category, comment, spent_at)
+          values ($1, $2, $3, $4, $5, coalesce($6::date, (now() at time zone 'Asia/Almaty')::date))
+          returning id, staff_id, booking_id, amount, category, comment, spent_at, created_at
+        `,
+        [
+          staffId,
+          params.bookingId ?? null,
+          item.amount,
+          item.category,
+          params.comment?.trim() || null,
+          params.spentAt ?? null,
+        ],
+      );
+
+      created.push(this.toResponse(result.rows[0]));
+    }
+
+    return created;
+  }
+
   private sumByCategory(expenses: ReturnType<AdminExpensesService['toResponse']>[]) {
     const totals = new Map<string, number>();
 
@@ -190,7 +239,24 @@ export class AdminExpensesService {
       .sort((a, b) => b.total - a.total);
   }
 
-  private async list(range?: ReportRange, staffId?: string) {
+  private resolveFilterBounds(filter: ExpenseFilter) {
+    if (filter.day) {
+      return getExactDayBounds(filter.day);
+    }
+
+    if (filter.month) {
+      return getExactMonthBounds(filter.month);
+    }
+
+    if (filter.range) {
+      const { fromDate, toDate } = getReportRangeBounds(filter.range);
+      return { fromDate, toDate };
+    }
+
+    return null;
+  }
+
+  private async list(filter: ExpenseFilter, staffId?: string) {
     const conditions: string[] = [];
     const values: unknown[] = [];
 
@@ -199,11 +265,12 @@ export class AdminExpensesService {
       conditions.push(`e.staff_id = $${values.length}`);
     }
 
-    if (range) {
-      const { fromDate, toDate } = getReportRangeBounds(range);
-      values.push(fromDate);
+    const bounds = this.resolveFilterBounds(filter);
+
+    if (bounds) {
+      values.push(bounds.fromDate);
       conditions.push(`e.spent_at >= $${values.length}`);
-      values.push(toDate);
+      values.push(bounds.toDate);
       conditions.push(`e.spent_at < $${values.length}`);
     }
 

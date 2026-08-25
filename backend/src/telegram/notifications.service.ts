@@ -20,9 +20,9 @@ type UpcomingBookingRow = QueryResultRow & {
  * Staff-facing notifications only. There is no channel to have the server
  * message clients directly (no WhatsApp Business API, and the Telegram bot
  * can only message users who have started a chat with it themselves) — so
- * these reminders go to the manager/organizer chat(s) already configured in
- * site_settings.manager_chat_ids, prompting a human to follow up with the
- * client by phone/WhatsApp.
+ * these reminders go to the manager and organizer chat(s) configured in
+ * site_settings (manager_chat_ids / organizer_chat_ids), prompting a human
+ * to follow up with the client by phone/WhatsApp.
  */
 @Injectable()
 export class NotificationsService {
@@ -52,7 +52,7 @@ export class NotificationsService {
       );
 
       if (result.rows.length === 0) {
-        await this.telegramService.sendMessage(
+        await this.telegramService.sendToStaff(
           '<b>Доброе утро!</b>\nНа сегодня броней нет.',
         );
         return;
@@ -63,7 +63,7 @@ export class NotificationsService {
           `${this.formatTime(row.start_at)} — ${this.escapeHtml(row.package_title || 'Пакет не указан')}, ${this.escapeHtml(row.client_name)} (${this.escapeHtml(row.client_phone)})`,
       );
 
-      await this.telegramService.sendMessage(
+      await this.telegramService.sendToStaff(
         [`<b>Доброе утро! Сегодня ${result.rows.length} брон(ь/и/ей):</b>`, '', ...lines].join(
           '\n',
         ),
@@ -96,7 +96,7 @@ export class NotificationsService {
       );
 
       for (const row of result.rows) {
-        await this.telegramService.sendMessage(
+        await this.telegramService.sendToStaff(
           [
             '<b>Скоро бронь — не забудьте подготовиться / связаться с клиентом</b>',
             '',

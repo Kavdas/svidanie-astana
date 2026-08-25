@@ -16,8 +16,22 @@ export class TelegramService {
   ) {}
 
   async sendMessage(text: string) {
+    return this.sendToChatIds(text, await this.getManagerChatIds());
+  }
+
+  /** Manager + organizer chat ids combined (deduped) — for notifications
+   * both roles care about, like a new booking or the morning digest. */
+  async sendToStaff(text: string) {
+    const chatIds = [
+      ...(await this.getManagerChatIds()),
+      ...(await this.getOrganizerChatIds()),
+    ];
+
+    return this.sendToChatIds(text, Array.from(new Set(chatIds)));
+  }
+
+  private async sendToChatIds(text: string, chatIds: string[]) {
     const botToken = this.configService.get<string>('TELEGRAM_BOT_TOKEN');
-    const chatIds = await this.getManagerChatIds();
 
     if (!botToken || chatIds.length === 0) {
       this.logger.warn('Telegram is not configured; notification skipped');
@@ -86,7 +100,7 @@ export class TelegramService {
         : 'Комментарий: нет',
     ].join('\n');
 
-    return this.sendMessage(message);
+    return this.sendToStaff(message);
   }
 
   private escapeHtml(value: string) {
@@ -141,6 +155,39 @@ export class TelegramService {
     } catch (error) {
       this.logger.warn(
         `Could not read manager_chat_ids from site_settings; falling back to env. ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`,
+      );
+      return null;
+    }
+  }
+
+  private async getOrganizerChatIds() {
+    const dbValue = await this.getOrganizerChatIdsFromDb();
+
+    if (dbValue) {
+      return this.parseChatIds(dbValue);
+    }
+
+    const envChatIds = this.configService.get<string>(
+      'TELEGRAM_ORGANIZER_CHAT_IDS',
+    );
+
+    return this.parseChatIds(envChatIds || '');
+  }
+
+  private async getOrganizerChatIdsFromDb(): Promise<string | null> {
+    try {
+      const result = await this.databaseService.query<{
+        organizer_chat_ids: string | null;
+      }>(
+        'select organizer_chat_ids from site_settings where organizer_chat_ids is not null limit 1',
+      );
+
+      return result.rows[0]?.organizer_chat_ids ?? null;
+    } catch (error) {
+      this.logger.warn(
+        `Could not read organizer_chat_ids from site_settings; falling back to env. ${
           error instanceof Error ? error.message : 'Unknown error'
         }`,
       );
