@@ -507,7 +507,7 @@ async function loadBookings() {
 
     card.innerHTML = `
       <h3>${item.clientName}</h3>
-      <p><strong>Телефон:</strong> ${item.clientPhone}</p>
+      <p><strong>Телефон:</strong> ${clientPhoneLink(item.clientPhone)}</p>
       <p><strong>Пакет:</strong> ${item.packageTitle || "Не указан"}</p>
       <p><strong>Дата и время:</strong> ${formatDateTime(item.startAt)}</p>
       <p><strong>Окончание:</strong> ${formatDateTime(item.endAt)}</p>
@@ -650,6 +650,29 @@ async function updatePaymentStatus(bookingId, paymentStatus) {
   } catch (error) {
     alert("Ошибка изменения статуса оплаты: " + error.message);
   }
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+// Kazakhstani/Russian numbers are often typed with a leading 8 instead of
+// +7 for the same real number — normalize so the wa.me link still resolves.
+function clientPhoneLink(phone) {
+  if (!phone) return "";
+
+  let digits = String(phone).replace(/\D/g, "");
+  if (digits.length === 11 && digits.startsWith("8")) {
+    digits = "7" + digits.slice(1);
+  }
+
+  if (!digits) return escapeHtml(phone);
+
+  return `<a href="https://wa.me/${digits}" target="_blank" rel="noopener" class="client-phone-link">${escapeHtml(phone)}</a>`;
 }
 
 function formatDateTime(value) {
@@ -1130,6 +1153,59 @@ const scheduleList = document.getElementById("scheduleList");
 const refreshScheduleBtn = document.getElementById("refreshScheduleBtn");
 let currentScheduleRange = "today";
 
+function almatyDateKey(value) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Almaty",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).format(new Date(value));
+}
+
+function scheduleDayHeading(dateKey) {
+  const todayKey = almatyDateKey(new Date());
+  const tomorrowKey = almatyDateKey(new Date(Date.now() + 24 * 60 * 60 * 1000));
+
+  if (dateKey === todayKey) return "Сегодня";
+  if (dateKey === tomorrowKey) return "Завтра";
+
+  return new Intl.DateTimeFormat("ru-RU", {
+    timeZone: "Asia/Almaty",
+    day: "2-digit",
+    month: "long",
+    weekday: "long"
+  }).format(new Date(`${dateKey}T12:00:00+05:00`));
+}
+
+function renderScheduleCard(item, { past }) {
+  const card = document.createElement("div");
+  card.className = past ? "booking-card schedule-card-past" : "booking-card";
+
+  const checklist = item.includes.length
+    ? `<ul class="schedule-checklist">${item.includes.map((line) => `<li>${escapeHtml(line)}</li>`).join("")}</ul>`
+    : "";
+
+  card.innerHTML = `
+    <h3>${formatDateTime(item.startAt)} — ${escapeHtml(item.packageTitle || "Пакет не указан")}</h3>
+    <p><strong>Клиент:</strong> ${escapeHtml(item.clientName)} · ${clientPhoneLink(item.clientPhone)}</p>
+    <p><strong>Комментарий:</strong> ${escapeHtml(item.comment) || "Нет"}</p>
+    ${checklist}
+    <p style="margin-top: 10px;">
+      <span class="event-status-badge">${item.eventStatus}</span>
+    </p>
+    <div class="card-actions">
+      <button type="button" class="event-status-btn" data-booking-id="${item.bookingId}" data-status="подготовлено" ${item.eventStatus !== "ожидается" ? "disabled" : ""}>
+        Подготовлено
+      </button>
+      <button type="button" class="event-status-btn" data-booking-id="${item.bookingId}" data-status="проведено" ${item.eventStatus === "проведено" ? "disabled" : ""}>
+        Проведено
+      </button>
+    </div>
+  `;
+
+  return card;
+}
+
 async function loadSchedule() {
   if (!scheduleList) return;
 
@@ -1151,34 +1227,49 @@ async function loadSchedule() {
     return;
   }
 
+  const todayKey = almatyDateKey(new Date());
+  const now = Date.now();
+
+  const dayGroups = new Map();
   data.schedule.forEach((item) => {
-    const card = document.createElement("div");
-    card.className = "booking-card";
-
-    const checklist = item.includes.length
-      ? `<ul class="schedule-checklist">${item.includes.map((line) => `<li>${line}</li>`).join("")}</ul>`
-      : "";
-
-    card.innerHTML = `
-      <h3>${formatDateTime(item.startAt)} — ${item.packageTitle || "Пакет не указан"}</h3>
-      <p><strong>Клиент:</strong> ${item.clientName} · ${item.clientPhone}</p>
-      <p><strong>Комментарий:</strong> ${item.comment || "Нет"}</p>
-      ${checklist}
-      <p style="margin-top: 10px;">
-        <span class="event-status-badge">${item.eventStatus}</span>
-      </p>
-      <div class="card-actions">
-        <button type="button" class="event-status-btn" data-booking-id="${item.bookingId}" data-status="подготовлено" ${item.eventStatus !== "ожидается" ? "disabled" : ""}>
-          Подготовлено
-        </button>
-        <button type="button" class="event-status-btn" data-booking-id="${item.bookingId}" data-status="проведено" ${item.eventStatus === "проведено" ? "disabled" : ""}>
-          Проведено
-        </button>
-      </div>
-    `;
-
-    scheduleList.appendChild(card);
+    const dateKey = almatyDateKey(item.startAt);
+    if (!dayGroups.has(dateKey)) dayGroups.set(dateKey, []);
+    dayGroups.get(dateKey).push(item);
   });
+
+  Array.from(dayGroups.keys())
+    .sort()
+    .forEach((dateKey) => {
+      const heading = document.createElement("h3");
+      heading.className = "schedule-day-heading";
+      heading.textContent = scheduleDayHeading(dateKey);
+      scheduleList.appendChild(heading);
+
+      const items = dayGroups.get(dateKey);
+
+      if (dateKey === todayKey) {
+        const upcoming = items.filter((item) => new Date(item.startAt).getTime() >= now);
+        const past = items.filter((item) => new Date(item.startAt).getTime() < now);
+
+        if (upcoming.length) {
+          const sub = document.createElement("p");
+          sub.className = "schedule-sub-heading";
+          sub.textContent = "Ближайшие";
+          scheduleList.appendChild(sub);
+          upcoming.forEach((item) => scheduleList.appendChild(renderScheduleCard(item, { past: false })));
+        }
+
+        if (past.length) {
+          const sub = document.createElement("p");
+          sub.className = "schedule-sub-heading";
+          sub.textContent = "Прошедшие сегодня";
+          scheduleList.appendChild(sub);
+          past.forEach((item) => scheduleList.appendChild(renderScheduleCard(item, { past: true })));
+        }
+      } else {
+        items.forEach((item) => scheduleList.appendChild(renderScheduleCard(item, { past: false })));
+      }
+    });
 
   document.querySelectorAll(".event-status-btn").forEach((button) => {
     button.addEventListener("click", async () => {
@@ -1450,11 +1541,11 @@ async function loadSalesReport() {
     return;
   }
 
-  const rows = data.packages
+  const summaryRows = data.packages
     .map(
       (pkg) => `
         <tr>
-          <td>${pkg.packageTitle}</td>
+          <td>${escapeHtml(pkg.packageTitle)}</td>
           <td>${pkg.count}</td>
           <td>${formatMoney(pkg.totalAmount)} ₸</td>
         </tr>
@@ -1462,16 +1553,51 @@ async function loadSalesReport() {
     )
     .join("");
 
+  const saleRows = data.sales
+    .map(
+      (sale) => `
+        <tr>
+          <td>${formatDateTime(sale.soldAt)}</td>
+          <td>${formatDateTime(sale.startAt)}</td>
+          <td>${escapeHtml(sale.packageTitle || "Не указан")}</td>
+          <td>${escapeHtml(sale.clientName)}</td>
+          <td>${clientPhoneLink(sale.clientPhone)}</td>
+          <td>${sale.amount == null ? "—" : formatMoney(sale.amount) + " ₸"}</td>
+          <td>${escapeHtml(sale.status)}</td>
+        </tr>
+      `
+    )
+    .join("");
+
   salesReportContent.innerHTML = `
+    <h3>По пакетам</h3>
     <table class="sales-report-table">
       <thead>
         <tr><th>Пакет</th><th>Количество</th><th>Сумма</th></tr>
       </thead>
-      <tbody>${rows}</tbody>
+      <tbody>${summaryRows}</tbody>
       <tfoot>
         <tr><td>Итого</td><td>${data.totalCount}</td><td>${formatMoney(data.totalAmount)} ₸</td></tr>
       </tfoot>
     </table>
+
+    <h3 style="margin-top: 24px;">Все продажи по датам</h3>
+    <div class="table-scroll">
+      <table class="sales-report-table">
+        <thead>
+          <tr>
+            <th>Дата продажи</th>
+            <th>Дата свидания</th>
+            <th>Пакет</th>
+            <th>Клиент</th>
+            <th>Телефон</th>
+            <th>Сумма</th>
+            <th>Статус</th>
+          </tr>
+        </thead>
+        <tbody>${saleRows}</tbody>
+      </table>
+    </div>
   `;
 }
 

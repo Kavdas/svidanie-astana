@@ -274,6 +274,11 @@ button {
     margin: 40px auto;
     padding: 24px;
   }
+
+  .client-phone-link {
+    padding: 6px 8px;
+    margin: -6px -8px;
+  }
 }
 .gallery-admin-list {
   display: grid;
@@ -448,6 +453,67 @@ button {
   font-weight: 700;
   border-bottom: none;
   border-top: 2px solid #444;
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+.table-scroll .sales-report-table {
+  min-width: 720px;
+}
+
+.schedule-day-heading {
+  margin: 24px 0 4px;
+  padding-top: 16px;
+  border-top: 1px solid #2e2e2e;
+  color: #fff;
+  text-transform: capitalize;
+}
+
+.schedule-day-heading:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
+.schedule-sub-heading {
+  margin: 4px 0 10px;
+  color: #999;
+  font-size: 12.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.schedule-card-past {
+  opacity: 0.55;
+}
+
+.client-phone-link {
+  color: #25d366;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 4px;
+  margin: -2px -4px;
+  border-radius: 6px;
+  transition: background 0.15s ease, opacity 0.15s ease;
+}
+
+.client-phone-link:hover,
+.client-phone-link:active {
+  background: rgba(37, 211, 102, 0.14);
+}
+
+.client-phone-link::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: #25d366;
+  flex-shrink: 0;
 }
 
 .schedule-checklist {

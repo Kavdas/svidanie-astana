@@ -49,7 +49,7 @@
         <button class="admin-tab seller-only" data-panel="managerBookingPanel">Забронировать для клиента</button>
         <button class="admin-tab" data-panel="schedulePanel">Расписание</button>
         <button class="admin-tab organizer-only" data-panel="expensesPanel">Расходы</button>
-        <button class="admin-tab seller-only" data-panel="salesReportPanel">Мои продажи</button>
+        <button class="admin-tab seller-only" data-panel="salesReportPanel">Продажи</button>
     </div>
 
     <section class="admin-panel" id="dashboardPanel">
@@ -405,7 +405,7 @@
 
 <section class="admin-panel hidden" id="salesReportPanel">
   <div class="panel-header">
-    <h2>Мои продажи</h2>
+    <h2>Продажи</h2>
     <div class="form-actions">
       <button class="sales-range-btn active" type="button" data-range="today">Сегодня</button>
       <button class="sales-range-btn" type="button" data-range="week">Неделя</button>
@@ -413,6 +413,11 @@
       <button id="exportSalesBtn" type="button">Скачать Excel</button>
     </div>
   </div>
+
+  <p class="field-hint" style="margin-top: -6px;">
+    Все продажи по системе за выбранный период — и оформленные через кабинет,
+    и те, что клиент сделал сам на сайте.
+  </p>
 
   <div id="salesReportContent"></div>
 </section>

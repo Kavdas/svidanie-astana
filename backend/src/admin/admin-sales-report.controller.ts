@@ -22,7 +22,6 @@ export class AdminSalesReportController {
   getReport(@Req() request: AdminRequest, @Query('range') range?: string) {
     this.assertCanSell(request);
     return this.adminSalesReportService.getReport(
-      request.adminStaffId!,
       isReportRange(range) ? range : 'today',
     );
   }
@@ -35,7 +34,6 @@ export class AdminSalesReportController {
   ) {
     this.assertCanSell(request);
     const buffer = await this.adminSalesReportService.exportXlsx(
-      request.adminStaffId!,
       isReportRange(range) ? range : 'today',
     );
 
