@@ -1275,6 +1275,16 @@ h3 {
   padding: 0;
 }
 
+/* Anti-spam honeypot: real visitors never see or reach this field, but
+   basic bots that auto-fill every input in a form will. */
+.honeypot-field {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
 .slot-panel {
   display: grid;
   gap: 12px;

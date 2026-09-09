@@ -312,6 +312,11 @@
         <form class="booking-form" id="bookingForm">
           <h3>Оставить заявку</h3>
 
+          <div class="honeypot-field" aria-hidden="true">
+            <label for="clientWebsite">Оставьте это поле пустым</label>
+            <input type="text" id="clientWebsite" name="website" tabindex="-1" autocomplete="off" />
+          </div>
+
           <input type="text" id="clientName" placeholder="Ваше имя" required />
           <input type="tel" id="clientPhone" placeholder="Ваш номер телефона" required />
           <input type="date" id="clientDate" required />

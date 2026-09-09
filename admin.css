@@ -408,6 +408,32 @@ button {
   color: #000;
 }
 
+.profit-range-btn {
+  background: #222;
+  color: #fff;
+}
+
+.profit-range-btn.active {
+  background: #f5b400;
+  color: #000;
+}
+
+.profit-block {
+  background: #151515;
+  border: 1px solid #2e2e2e;
+  border-radius: 16px;
+  padding: 18px;
+  margin-bottom: 28px;
+}
+
+.profit-block .dashboard-stats {
+  margin: 16px 0 10px;
+}
+
+.profit-block .field-hint {
+  margin: 0;
+}
+
 .expense-batch-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));

@@ -2,6 +2,9 @@ let packages = [];
 let siteSettings = null;
 let selectedPackage = null;
 let selectedSlot = null;
+// When the booking form was last shown — sent with the submission as a
+// basic anti-spam signal (see backend/src/bookings/bookings.service.ts).
+let formRenderedAt = null;
 
 // Short, human-friendly code the client is asked to write in the Kaspi
 // transfer comment, so a manager can find the matching payment by
@@ -269,6 +272,7 @@ function openPackageModal(packageId) {
   if (bookingForm) {
     bookingForm.reset();
     bookingForm.classList.remove("hidden");
+    formRenderedAt = Date.now();
   }
 
   currentBookingId = null;
@@ -490,6 +494,7 @@ async function submitBooking(event) {
   const clientName = document.getElementById("clientName").value.trim();
   const clientPhone = document.getElementById("clientPhone").value.trim();
   const clientComment = document.getElementById("clientComment").value.trim();
+  const clientWebsite = document.getElementById("clientWebsite")?.value.trim();
   const selectedStartAt = selectedSlot?.startAt || clientSlotSelect.value;
 
   if (!selectedStartAt) {
@@ -506,6 +511,8 @@ async function submitBooking(event) {
         clientPhone,
         startAt: selectedStartAt,
         comment: clientComment,
+        website: clientWebsite || undefined,
+        formRenderedAt: formRenderedAt ? String(formRenderedAt) : undefined,
       }),
     });
 

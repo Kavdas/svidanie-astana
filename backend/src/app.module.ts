@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { BookingsModule } from './bookings/bookings.module';
@@ -16,6 +18,10 @@ import { AdminModule } from './admin/admin.module';
       isGlobal: true,
     }),
     ScheduleModule.forRoot(),
+    // Generous global default so real usage (staff refreshing the admin
+    // panel, clients checking slots) never trips it — individual public
+    // write endpoints layer a much stricter limit on top via @Throttle().
+    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
     DatabaseModule,
     TelegramModule,
     CatalogModule,
@@ -24,6 +30,9 @@ import { AdminModule } from './admin/admin.module';
     AdminModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+  ],
 })
 export class AppModule {}

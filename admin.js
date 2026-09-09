@@ -1659,7 +1659,56 @@ async function loadDashboard() {
   calendarSelectedDateKey = null;
   calendarDayBookings.innerHTML = "";
   renderCalendar();
+  await loadProfitReport();
 }
+
+const profitStats = document.getElementById("profitStats");
+let currentProfitRange = "month";
+
+async function loadProfitReport() {
+  if (!profitStats) return;
+
+  profitStats.innerHTML = "<p>Загружаем...</p>";
+
+  let data;
+
+  try {
+    data = await adminApiRequest(`/admin/profit-report?range=${currentProfitRange}`);
+  } catch (error) {
+    profitStats.innerHTML = `<p>Ошибка загрузки: ${error.message}</p>`;
+    return;
+  }
+
+  const profit = Number(data.profit);
+
+  profitStats.innerHTML = `
+    <div class="stat-card">
+      <div class="stat-value">${formatMoney(data.revenue)} тг</div>
+      <div class="stat-label">Выручка</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">${formatMoney(data.collectedDeposits)} тг</div>
+      <div class="stat-label">Собрано предоплат</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">${formatMoney(data.expenses)} тг</div>
+      <div class="stat-label">Расходы</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="color: ${profit >= 0 ? "#3ecf6a" : "#e5484d"};">${formatMoney(data.profit)} тг</div>
+      <div class="stat-label">Прибыль</div>
+    </div>
+  `;
+}
+
+document.querySelectorAll(".profit-range-btn").forEach((button) => {
+  button.addEventListener("click", async () => {
+    document.querySelectorAll(".profit-range-btn").forEach((btn) => btn.classList.remove("active"));
+    button.classList.add("active");
+    currentProfitRange = button.dataset.range;
+    await loadProfitReport();
+  });
+});
 
 function renderDashboardStats(stats) {
   dashboardStats.innerHTML = `

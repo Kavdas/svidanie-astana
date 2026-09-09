@@ -129,6 +129,12 @@ export class BookingsService {
   }
 
   async createBooking(dto: CreateBookingDto, createdByStaffId: string | null = null) {
+    // Anti-spam checks only apply to the public form (staff bookings never
+    // set these hidden fields, so they're skipped automatically for those).
+    if (!createdByStaffId) {
+      this.assertNotSpam(dto);
+    }
+
     const packageRow = await this.getPackage(dto.packageId);
     const startAt = new Date(dto.startAt);
 
@@ -291,6 +297,26 @@ export class BookingsService {
       bookingId: booking.id,
       paymentStatus: booking.payment_status,
     };
+  }
+
+  /**
+   * Two cheap, invisible-to-humans checks against basic booking-form spam:
+   * a honeypot field no real visitor ever fills in, and a minimum time
+   * between the form rendering and the submit landing (bots that fill and
+   * submit a form in under ~2s are essentially never a real person).
+   */
+  private assertNotSpam(dto: CreateBookingDto) {
+    if (dto.website) {
+      throw new BadRequestException('Invalid submission');
+    }
+
+    if (dto.formRenderedAt) {
+      const elapsed = Date.now() - Number(dto.formRenderedAt);
+
+      if (!Number.isNaN(elapsed) && elapsed >= 0 && elapsed < 2000) {
+        throw new BadRequestException('Invalid submission');
+      }
+    }
   }
 
   private async getPackage(packageId: string): Promise<PackageRow> {

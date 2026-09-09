@@ -6,6 +6,11 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const frontendUrl = process.env.FRONTEND_URL;
 
+  // Railway sits in front of the app as a reverse proxy — without this,
+  // every request looks like it comes from the proxy's own IP, which would
+  // make the rate limiter treat all visitors as one client.
+  app.getHttpAdapter().getInstance().set('trust proxy', 1);
+
   app.enableCors({
     origin: frontendUrl ? [frontendUrl] : true,
     credentials: true,

@@ -7,6 +7,8 @@ import { AdminDashboardController } from './admin-dashboard.controller';
 import { AdminDashboardService } from './admin-dashboard.service';
 import { AdminExpensesController } from './admin-expenses.controller';
 import { AdminExpensesService } from './admin-expenses.service';
+import { AdminProfitReportController } from './admin-profit-report.controller';
+import { AdminProfitReportService } from './admin-profit-report.service';
 import { AdminSalesReportController } from './admin-sales-report.controller';
 import { AdminSalesReportService } from './admin-sales-report.service';
 import { AdminStaffController } from './admin-staff.controller';
@@ -20,6 +22,7 @@ import { AdminStaffService } from './admin-staff.service';
     AdminDashboardController,
     AdminExpensesController,
     AdminSalesReportController,
+    AdminProfitReportController,
   ],
   providers: [
     AdminAuthGuard,
@@ -28,6 +31,7 @@ import { AdminStaffService } from './admin-staff.service';
     AdminDashboardService,
     AdminExpensesService,
     AdminSalesReportService,
+    AdminProfitReportService,
   ],
 })
 export class AdminModule {}
