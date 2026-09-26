@@ -1,21 +1,35 @@
+# Two jobs in one: it keeps the backend awake and reports when it is really
+# down.
+#
+# Render's free tier sleeps a service after 15 minutes without traffic and
+# takes ~50s to wake, which a visitor would meet as a dead "choose a time"
+# button. A request every 5 minutes keeps it up. GitHub's schedulers are
+# best-effort and often run late, so 5 minutes is aimed at landing inside the
+# 15-minute window rather than at being exact.
+#
 # Nothing inside the backend can report that the backend is down, so the probe
-# has to live outside it. This runs on GitHub's schedulers and pings the health
-# endpoint (which itself checks Postgres — see backend/src/app.service.ts).
+# has to live outside it. /health checks Postgres too, not just the process
+# (see backend/src/app.service.ts).
 #
 # Required repository secrets:
-#   HEALTH_URL         e.g. https://<backend-host>/health
-#   TELEGRAM_BOT_TOKEN same bot the site already uses for booking alerts
+#   HEALTH_URL         e.g. https://<service>.onrender.com/health
+#   TELEGRAM_BOT_TOKEN same bot the site uses for booking alerts
 #   TELEGRAM_CHAT_ID   chat that should receive the outage alert
 #
 # Note: GitHub pauses scheduled workflows in repositories with no activity for
-# 60 days, and */15 is best-effort rather than exact.
+# 60 days.
 
-name: Uptime probe
+name: Keep alive and uptime probe
 
 on:
   schedule:
-    - cron: "*/15 * * * *"
+    - cron: "*/5 * * * *"
   workflow_dispatch:
+
+# A late run must not pile up behind an earlier one.
+concurrency:
+  group: uptime
+  cancel-in-progress: false
 
 jobs:
   health:
@@ -26,7 +40,9 @@ jobs:
         continue-on-error: true
         run: |
           set +e
-          body=$(curl -sS --max-time 20 -w '\n%{http_code}' "${{ secrets.HEALTH_URL }}")
+          # Generous timeout: a cold start on the free tier really does take
+          # the better part of a minute.
+          body=$(curl -sS --max-time 75 -w '\n%{http_code}' "${{ secrets.HEALTH_URL }}")
           code=$(printf '%s' "$body" | tail -n1)
           payload=$(printf '%s' "$body" | sed '$d')
 
@@ -40,11 +56,11 @@ jobs:
             echo "EOF_PAYLOAD"
           } >> "$GITHUB_OUTPUT"
 
-          # Two consecutive failures are what we alert on; a single blip is
-          # usually the host cycling a container.
+          # Alert only on two consecutive failures: a single miss is usually
+          # the host cycling a container, or a wake-up that outran the timeout.
           if [ "$code" != "200" ]; then
-            sleep 45
-            recheck=$(curl -sS --max-time 20 -o /dev/null -w '%{http_code}' "${{ secrets.HEALTH_URL }}")
+            sleep 90
+            recheck=$(curl -sS --max-time 75 -o /dev/null -w '%{http_code}' "${{ secrets.HEALTH_URL }}")
             echo "recheck HTTP $recheck"
             [ "$recheck" = "200" ] && exit 0
             exit 1
