@@ -1,0 +1,15 @@
+# Never bake secrets or local state into an image layer.
+.env
+.env.*
+!.env.example
+
+node_modules
+dist
+.git
+.gitignore
+
+test
+*.spec.ts
+tmp-*.js
+scratch-*.js
+*.log

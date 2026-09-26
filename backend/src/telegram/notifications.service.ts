@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Cron } from '@nestjs/schedule';
 import { QueryResultRow } from 'pg';
 import { DatabaseService } from '../database/database.service';
@@ -31,10 +32,30 @@ export class NotificationsService {
   constructor(
     private readonly databaseService: DatabaseService,
     private readonly telegramService: TelegramService,
+    private readonly configService: ConfigService,
   ) {}
+
+  /**
+   * These jobs message real staff and stamp reminder_sent_at, so exactly one
+   * instance may run them. Set SCHEDULED_NOTIFICATIONS=off when pointing a
+   * second instance (a local run, a staging copy) at the production database,
+   * or its reminders would go out instead of production's.
+   *
+   * Defaults to on, so production behaves the same without setting anything.
+   */
+  private get scheduledNotificationsEnabled() {
+    const value = this.configService.get<string>('SCHEDULED_NOTIFICATIONS');
+
+    return value !== 'off' && value !== 'false' && value !== '0';
+  }
 
   @Cron('0 8 * * *', { timeZone: 'Asia/Almaty' })
   async sendMorningDigest() {
+    if (!this.scheduledNotificationsEnabled) {
+      this.logger.log('Morning digest skipped: SCHEDULED_NOTIFICATIONS is off');
+      return;
+    }
+
     try {
       const { from, to } = this.getTodayBoundsAlmaty();
 
@@ -77,6 +98,11 @@ export class NotificationsService {
 
   @Cron('*/15 * * * *')
   async sendUpcomingReminders() {
+    if (!this.scheduledNotificationsEnabled) {
+      this.logger.log('Upcoming reminders skipped: SCHEDULED_NOTIFICATIONS is off');
+      return;
+    }
+
     try {
       const now = new Date();
       const windowEnd = new Date(now.getTime() + REMINDER_WINDOW_HOURS * 60 * 60_000);

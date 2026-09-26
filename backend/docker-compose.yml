@@ -1,6 +1,11 @@
 services:
   backend:
-    build: .
+    build:
+      context: .
+      # Stop at the build stage: it still has the Nest CLI, which the
+      # watch-mode command below needs.
+      target: build
+    command: npm run start:dev
     ports:
       - "3001:3000"
     env_file:

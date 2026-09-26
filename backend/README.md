@@ -1,98 +1,101 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Svidanie Astana — backend
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+NestJS REST API за публичным сайтом и админ-панелью: каталог пакетов, расчёт
+свободных слотов, бронирование с предоплатой, учёт расходов и уведомления в
+Telegram. База — PostgreSQL в Supabase.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
-
-## Description
-
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
-
-## Project setup
+## Запуск локально
 
 ```bash
-$ npm install
+cp .env.example .env    # заполнить реальными значениями
+npm install
+npm run start:dev
 ```
 
-## Compile and run the project
+Фронтенд ожидает бэкенд на порту **3001**, поэтому поставьте `PORT=3001` в
+`.env` (либо задайте `window.SVIDANIE_API_BASE_URL` перед подключением
+`config.js`).
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+npm run build           # сборка в dist/
+npm run start:prod      # node dist/main
+npm test                # юнит-тесты
 ```
 
-## Run tests
+## Переменные окружения
+
+| Переменная | Зачем |
+| --- | --- |
+| `PORT` | Порт HTTP-сервера. Хостинг обычно подставляет свой. |
+| `FRONTEND_URL` | Единственный origin, которому разрешён CORS. Без неё разрешены все — в проде задавать обязательно. |
+| `DATABASE_URL` | Строка подключения к Postgres (Supabase, `sslmode=require`). |
+| `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` | Проверка токенов админки и работа с хранилищем. |
+| `SCHEDULED_NOTIFICATIONS` | `off` отключает утренний дайджест и напоминания. Нужен на любом втором инстансе (локальный запуск, стенд), иначе он разошлёт уведомления вместо продакшена. По умолчанию включено. |
+| `TELEGRAM_BOT_TOKEN` | Бот, который шлёт уведомления. |
+| `TELEGRAM_MANAGER_CHAT_IDS` | Чаты менеджеров (через запятую). |
+| `TELEGRAM_ORGANIZER_CHAT_IDS` | Чаты организаторов. |
+| `HALYK_*` | Заготовка под онлайн-эквайринг, пока не используется. |
+
+`.env` не попадает ни в git, ни в Docker-образ (см. `.gitignore` и
+`.dockerignore`).
+
+## Проверка состояния
+
+`GET /health` — единственный маршрут вне префикса `/api`. Он делает
+`select 1` в базе и отвечает `503`, если она недоступна: процесс, который
+поднялся, но не видит Postgres, отдаёт только ошибки, и health-check, который
+проверяет лишь сам процесс, назвал бы это здоровым состоянием.
+
+```json
+{ "status": "ok", "database": "ok", "uptime": 1284 }
+```
+
+Этот же маршрут опрашивает `.github/workflows/uptime.yml` каждые 15 минут и
+пишет в Telegram, если он не ответил дважды подряд.
+
+## Деплой
+
+Сервис должен работать как **постоянно живой процесс**, а не как serverless-
+функция: в `telegram/notifications.service.ts` есть два cron-задания —
+утренний дайджест в 08:00 по Алматы и напоминания о ближайших бронях каждые
+15 минут. В serverless-среде (например, в функциях Vercel) они не запустятся.
+
+Образ собирается из `Dockerfile` в две стадии: сборка с devDependencies,
+рантайм — только `dist/` и production-зависимости.
+
+### Railway
+
+1. New Project → Deploy from GitHub repo, каталог сервиса — `backend`.
+2. В Variables добавить переменные из таблицы выше. `PORT` Railway
+   подставляет сам, задавать не нужно.
+3. `FRONTEND_URL` — адрес сайта на Vercel, иначе CORS пропустит кого угодно.
+4. Settings → Healthcheck Path: `/health`.
+5. После первого деплоя взять публичный домен сервиса и прописать его в
+   `vercel.json` в поле `destination`, затем передеплоить фронтенд.
+
+### Что проверить после деплоя
 
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+curl -s https://<домен-бэкенда>/health
+curl -s https://<домен-сайта>/api/catalog/packages | head -c 200
 ```
 
-## Deployment
+Первый должен вернуть `{"status":"ok",...}`, второй — список пакетов. Если
+второй отдаёт 404, значит `vercel.json` всё ещё указывает на старый бэкенд.
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+## Локальный запуск на боевой базе
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+Иногда нужно проверить API на реальных данных. Тогда обязательно:
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+SCHEDULED_NOTIFICATIONS=off npm run start:prod
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+Без этого локальный процесс разошлёт сотрудникам напоминания и проставит
+`reminder_sent_at`, из-за чего боевой инстанс их уже не отправит.
 
-## Resources
+## Миграции
 
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+SQL в `sql/` применяется по порядку номеров через SQL Editor в Supabase.
+Автоматического механизма миграций нет — при добавлении файла запустите его
+вручную.
