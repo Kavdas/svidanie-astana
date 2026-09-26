@@ -2,3 +2,7 @@ backend
 svidanie-backend
 .agents
 .claude
+
+# Full-size PNG originals — only the WebP/JPEG renditions next to them ship.
+# Rebuild the renditions with: python3 scripts/optimize-images.py
+assets/gallery/source
