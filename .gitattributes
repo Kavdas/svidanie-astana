@@ -1,0 +1,12 @@
+# The working tree was converted to CRLF at some point, which makes every file
+# look fully rewritten in a diff. Normalise to LF in the repository; checkouts
+# still get whatever the platform wants.
+* text=auto eol=lf
+
+# Binary assets must never be line-ending converted.
+*.png binary
+*.jpg binary
+*.webp binary
+*.ico binary
+*.woff binary
+*.woff2 binary
