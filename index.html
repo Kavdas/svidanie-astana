@@ -18,24 +18,103 @@
 
   <meta
     name="description"
-    content="Романтические свидания, день рождения и предложение руки и сердца в панорамном куполе в Астане."
+    content="Романтические свидания, день рождения и предложение руки и сердца в панорамном куполе в Астане. Оформление, ужин, музыка и панорамный вид — под ключ."
   />
+
+  <link rel="canonical" href="https://svidanie-site.vercel.app/" />
+
+  <!-- Most of the traffic arrives from an Instagram bio or a WhatsApp
+       forward, where the link is rendered as a card. Without these the card
+       was blank. -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Svidanie Astana" />
+  <meta property="og:locale" content="ru_RU" />
+  <meta property="og:url" content="https://svidanie-site.vercel.app/" />
+  <meta
+    property="og:title"
+    content="Свидание в Астане — романтика в панорамном куполе"
+  />
+  <meta
+    property="og:description"
+    content="Свидания, дни рождения и предложения руки и сердца в панорамном куполе. Оформление, ужин, музыка и вид на город — всё готово к вашему приходу."
+  />
+  <meta property="og:image" content="https://svidanie-site.vercel.app/og-image.jpg" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta
+    property="og:image:alt"
+    content="Сервированный стол в панорамном куполе со свечами и декором"
+  />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta
+    name="twitter:title"
+    content="Свидание в Астане — романтика в панорамном куполе"
+  />
+  <meta
+    name="twitter:description"
+    content="Свидания, дни рождения и предложения руки и сердца в панорамном куполе в Астане."
+  />
+  <meta name="twitter:image" content="https://svidanie-site.vercel.app/og-image.jpg" />
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <!-- Fonts must not hold up first paint: on mobile the round trip to
+       fonts.googleapis.com costs several hundred ms before anything renders.
+       The stylesheet is fetched at print priority and promoted to all media
+       once it lands, so text paints immediately in the fallback face and
+       swaps in (display=swap) when the webfont is ready. -->
+  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" />
   <link
-    href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500&family=Manrope:wght@400;500;600;700;800&display=swap&subset=cyrillic"
     rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap"
+    media="print"
+    onload="this.media='all'"
   />
+  <noscript>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" />
+  </noscript>
 
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <link rel="icon" href="/favicon.ico" sizes="any" />
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
   <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png" />
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <meta name="theme-color" content="#faf6ee" media="(prefers-color-scheme: light)" />
   <meta name="theme-color" content="#0b0708" />
+  <meta name="apple-mobile-web-app-title" content="Svidanie" />
 
   <link rel="stylesheet" href="style.css" />
+
+  <!-- Structured data for Google's local results. Everything here is stated
+       elsewhere on the page or in the admin settings; do not add hours, a
+       street address or a rating until those are real. Fill address and
+       openingHours once they are set in the admin panel. -->
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "LocalBusiness",
+      "@id": "https://svidanie-site.vercel.app/#business",
+      "name": "Svidanie Astana",
+      "description": "Организация романтических свиданий, дней рождения и предложений руки и сердца в панорамном куполе в Астане.",
+      "url": "https://svidanie-site.vercel.app/",
+      "image": "https://svidanie-site.vercel.app/og-image.jpg",
+      "telephone": "+77052518757",
+      "priceRange": "26990–79990 KZT",
+      "currenciesAccepted": "KZT",
+      "address": {
+        "@type": "PostalAddress",
+        "addressLocality": "Астана",
+        "addressCountry": "KZ"
+      },
+      "areaServed": {
+        "@type": "City",
+        "name": "Астана"
+      },
+      "sameAs": ["https://www.instagram.com/svidanie.astana/"]
+    }
+  </script>
 </head>
 
 <body>
@@ -73,7 +152,7 @@
         </button>
       </div>
 
-      <button class="burger" id="burgerBtn">
+      <button class="burger" id="burgerBtn" type="button" aria-label="Открыть меню" aria-expanded="false">
         <span></span>
         <span></span>
         <span></span>
@@ -99,6 +178,25 @@
 
   <!-- HERO -->
   <section class="hero" id="heroSection">
+    <!-- The LCP element. Kept as a real <img> (not a CSS background) so the
+         preload scanner finds it in the raw HTML and the browser can pick a
+         480w file on a phone instead of downloading the desktop one. -->
+    <img
+      class="hero-photo"
+      id="heroPhoto"
+      src="assets/gallery/saxophone-date-wide-1280.jpg"
+      srcset="
+        assets/gallery/saxophone-date-wide-480.webp   480w,
+        assets/gallery/saxophone-date-wide-800.webp   800w,
+        assets/gallery/saxophone-date-wide-1280.webp 1280w,
+        assets/gallery/saxophone-date-wide-1600.webp 1600w
+      "
+      sizes="100vw"
+      alt=""
+      aria-hidden="true"
+      fetchpriority="high"
+      decoding="async"
+    />
     <div class="hero-overlay"></div>
 
     <div class="container hero-content">
@@ -280,6 +378,22 @@
     <span class="whatsapp-icon"></span>
   </button>
 
+  <!-- GALLERY LIGHTBOX -->
+  <div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Просмотр фото">
+    <button class="lightbox-backdrop" id="lightboxBackdrop" type="button" aria-label="Закрыть"></button>
+
+    <figure class="lightbox-figure">
+      <img id="lightboxImage" alt="" />
+      <figcaption id="lightboxCaption"></figcaption>
+    </figure>
+
+    <button class="lightbox-btn lightbox-close" id="lightboxClose" type="button" aria-label="Закрыть">×</button>
+    <button class="lightbox-btn lightbox-prev" id="lightboxPrev" type="button" aria-label="Предыдущее фото">‹</button>
+    <button class="lightbox-btn lightbox-next" id="lightboxNext" type="button" aria-label="Следующее фото">›</button>
+
+    <p class="lightbox-counter" id="lightboxCounter"></p>
+  </div>
+
   <!-- PACKAGE MODAL -->
   <div class="modal" id="packageModal">
     <div class="modal-overlay" onclick="closePackageModal()"></div>
@@ -317,9 +431,30 @@
             <input type="text" id="clientWebsite" name="website" tabindex="-1" autocomplete="off" />
           </div>
 
-          <input type="text" id="clientName" placeholder="Ваше имя" required />
-          <input type="tel" id="clientPhone" placeholder="Ваш номер телефона" required />
-          <input type="date" id="clientDate" required />
+          <input
+            type="text"
+            id="clientName"
+            placeholder="Ваше имя"
+            aria-label="Ваше имя"
+            autocomplete="name"
+            autocapitalize="words"
+            required
+          />
+          <input
+            type="tel"
+            id="clientPhone"
+            placeholder="+7 (___) ___-__-__"
+            aria-label="Ваш номер телефона"
+            inputmode="tel"
+            autocomplete="tel"
+            required
+          />
+          <input
+            type="date"
+            id="clientDate"
+            aria-label="Дата события"
+            required
+          />
 
           <select id="clientSlot" class="visually-hidden-select" required>
             <option value="">Сначала выберите дату</option>
@@ -330,7 +465,12 @@
             <div class="slot-grid" id="slotGrid"></div>
           </div>
 
-          <textarea id="clientComment" placeholder="Комментарий, пожелания"></textarea>
+          <textarea
+            id="clientComment"
+            placeholder="Комментарий, пожелания"
+            aria-label="Комментарий, пожелания"
+            rows="3"
+          ></textarea>
 
           <button type="submit" class="whatsapp-submit-btn">
             <span class="whatsapp-icon"></span>

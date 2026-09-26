@@ -13,54 +13,63 @@ function getBookingReferenceCode(bookingId) {
   return (bookingId || "").slice(0, 8).toUpperCase();
 }
 
+// Photos bundled with the site. The originals live in assets/gallery/source/
+// and are never deployed; what ships are the WebP renditions (plus one JPEG
+// per photo for browsers without WebP) built by scripts/optimize-images.py.
+// The numbers below are the widths that actually exist on disk.
+const LOCAL_PHOTO_WIDTHS = {
+  "saxophone-date-wide": [480, 800, 1280, 1600],
+  "saxophone-date-portrait": [480, 800, 1086],
+  "cinema-decor-wide": [480, 800, 1280, 1600],
+  "romantic-table-wide": [480, 800, 1280, 1600],
+  "dinner-closeup": [480, 800, 1280, 1600],
+  "astana-baiterek-view": [480, 800, 1086],
+  "astana-mosque-view": [480, 800, 1086],
+  "astana-panorama": [480, 800, 1086],
+  "daylight-table-view": [480, 800, 1086],
+  "dome-evening-wide": [480, 800, 1280, 1600],
+  "astana-juregi-night": [480, 800, 1280, 1422],
+};
+
+// Widths the gallery grid actually renders at: one column under 680px,
+// two up to 980px, three above. Keeps phones on the 480w file.
+const GALLERY_SIZES =
+  "(max-width: 680px) calc(100vw - 40px), (max-width: 980px) 46vw, 31vw";
+
+function localPhoto(name) {
+  const widths = LOCAL_PHOTO_WIDTHS[name];
+
+  if (!widths) return null;
+
+  const fallbackWidth = Math.min(1280, widths[widths.length - 1]);
+
+  return {
+    src: `assets/gallery/${name}-${fallbackWidth}.jpg`,
+    srcset: widths
+      .map((width) => `assets/gallery/${name}-${width}.webp ${width}w`)
+      .join(", "),
+  };
+}
+
 const localGallery = [
-  {
-    title: "Свидание с живой музыкой",
-    image_url: "assets/gallery/saxophone-date-wide.png",
-  },
-  {
-    title: "Живая музыка в куполе",
-    image_url: "assets/gallery/saxophone-date-portrait.png",
-  },
-  {
-    title: "Декор с экраном",
-    image_url: "assets/gallery/cinema-decor-wide.png",
-  },
-  {
-    title: "Романтический ужин в куполе",
-    image_url: "assets/gallery/romantic-table-wide.png",
-  },
-  {
-    title: "Сервировка со свечами",
-    image_url: "assets/gallery/dinner-closeup.png",
-  },
-  {
-    title: "Вид на город",
-    image_url: "assets/gallery/astana-baiterek-view.png",
-  },
-  {
-    title: "Вид на мечеть",
-    image_url: "assets/gallery/astana-mosque-view.png",
-  },
-  {
-    title: "Панорама Астаны",
-    image_url: "assets/gallery/astana-panorama.png",
-  },
-  {
-    title: "Дневная сервировка",
-    image_url: "assets/gallery/daylight-table-view.png",
-  },
-  {
-    title: "Вечерний купол",
-    image_url: "assets/gallery/dome-evening-wide.png",
-  },
-  {
-    title: "Astana Juregi",
-    image_url: "assets/gallery/astana-juregi-night.png",
-  },
+  { title: "Свидание с живой музыкой", photo: "saxophone-date-wide" },
+  { title: "Живая музыка в куполе", photo: "saxophone-date-portrait" },
+  { title: "Декор с экраном", photo: "cinema-decor-wide" },
+  { title: "Романтический ужин в куполе", photo: "romantic-table-wide" },
+  { title: "Сервировка со свечами", photo: "dinner-closeup" },
+  { title: "Вид на город", photo: "astana-baiterek-view" },
+  { title: "Вид на мечеть", photo: "astana-mosque-view" },
+  { title: "Панорама Астаны", photo: "astana-panorama" },
+  { title: "Дневная сервировка", photo: "daylight-table-view" },
+  { title: "Вечерний купол", photo: "dome-evening-wide" },
+  { title: "Astana Juregi", photo: "astana-juregi-night" },
 ];
 
-const defaultLocationImage = "assets/gallery/romantic-table-wide.png";
+const HERO_PHOTO = "saxophone-date-wide";
+const DEFAULT_LOCATION_PHOTO = "romantic-table-wide";
+// Cards and the modal render well under 800px wide, so the bundled fallback
+// is served at that width rather than at full size.
+const defaultLocationImage = `assets/gallery/${DEFAULT_LOCATION_PHOTO}-800.webp`;
 const defaultLocationText = "Купол в центре Астаны, 13 этаж";
 
 const packagesGrid = document.getElementById("packagesGrid");
@@ -132,13 +141,15 @@ async function loadSiteSettings() {
       heroSubtitle.textContent = siteSettings.hero_subtitle;
     }
 
-    if (heroSection) {
-      const heroImage =
-        siteSettings.hero_image_url || "assets/gallery/saxophone-date-wide.png";
-      heroSection.style.backgroundImage = `
-        linear-gradient(rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.92)),
-        url("${heroImage}")
-      `;
+    // The hero photo is an <img> so it can be preloaded at a phone-sized
+    // width; an admin-set image replaces it and drops the bundled srcset,
+    // since we have no renditions of an uploaded file.
+    const heroPhoto = document.getElementById("heroPhoto");
+
+    if (heroPhoto && siteSettings.hero_image_url) {
+      heroPhoto.removeAttribute("srcset");
+      heroPhoto.removeAttribute("sizes");
+      heroPhoto.src = siteSettings.hero_image_url;
     }
 
     document.querySelectorAll("[data-instagram-link]").forEach((link) => {
@@ -160,9 +171,27 @@ async function loadPackages() {
     renderPackages(getActiveCategory());
   } catch (error) {
     console.error("Ошибка загрузки пакетов:", error);
-    packagesGrid.innerHTML =
-      "<p>Не удалось загрузить пакеты. Попробуйте позже.</p>";
+    renderCatalogUnavailable();
   }
+}
+
+// The catalogue lives in the database, so there is nothing sensible to show
+// from the bundle when the API is unreachable. Rather than leaving a bare
+// error line, hand the visitor the channel that still works.
+function renderCatalogUnavailable() {
+  packagesGrid.innerHTML = `
+    <div class="catalog-fallback">
+      <h3>Каталог временно недоступен</h3>
+      <p>
+        Мы уже разбираемся. Напишите менеджеру — он расскажет про пакеты,
+        цены и свободные даты и оформит бронь за пару минут.
+      </p>
+      <button class="main-btn" type="button" onclick="openManagerWhatsApp()">
+        <span class="whatsapp-icon"></span>
+        Написать менеджеру
+      </button>
+    </div>
+  `;
 }
 
 function renderPackages(category = "all") {
@@ -185,8 +214,16 @@ function renderPackages(category = "all") {
 
     const packageImage = getPackageImage(item);
 
+    // Dark enough at the bottom for the text to stay readable, light enough
+    // at the top that the photo is actually visible — the old flat 58%–92%
+    // wash hid what the card is selling.
     card.style.backgroundImage = `
-      linear-gradient(rgba(0, 0, 0, 0.58), rgba(0, 0, 0, 0.92)),
+      linear-gradient(
+        180deg,
+        rgba(0, 0, 0, 0.18) 0%,
+        rgba(0, 0, 0, 0.55) 45%,
+        rgba(0, 0, 0, 0.93) 100%
+      ),
       url("${packageImage}")
     `;
 
@@ -381,6 +418,7 @@ function openManagerWhatsApp() {
 Подскажите, пожалуйста, свободные даты, пакеты и условия оплаты.
   `;
 
+  trackGoal("whatsapp_click");
   window.open(createWhatsAppUrl(message), "_blank");
 }
 
@@ -399,6 +437,7 @@ function sendPackageDirectly(packageId) {
 Подскажите, пожалуйста, свободные даты и условия оплаты.
   `;
 
+  trackGoal("whatsapp_package_click");
   window.open(createWhatsAppUrl(message), "_blank");
 }
 
@@ -427,7 +466,9 @@ async function loadAvailableSlots() {
     renderSlots(data.slots || []);
   } catch (error) {
     console.error("Ошибка загрузки слотов:", error);
-    resetSlots("Не удалось загрузить свободное время");
+    resetSlots(
+      "Не удалось загрузить свободное время — уточните его у менеджера в WhatsApp"
+    );
   }
 }
 
@@ -517,6 +558,7 @@ async function submitBooking(event) {
     });
 
     currentBookingId = booking.bookingId;
+    trackGoal("booking_submitted");
     showPaymentStep(booking);
 
     bookingForm.reset();
@@ -524,28 +566,102 @@ async function submitBooking(event) {
     resetSlots("Сначала выберите дату");
     await loadAvailableSlots();
   } catch (error) {
-    alert(error.message || "Не удалось создать бронь");
     console.error("Ошибка бронирования:", error);
+    showBookingFallback(error, {
+      clientName,
+      clientPhone,
+      clientComment,
+      startAt: selectedStartAt,
+    });
   }
 }
+
+// A booking that fails on the server is a lost client unless we hand the
+// filled-in details somewhere they still get read. Rather than an alert() that
+// drops everything, offer the same request as a pre-written WhatsApp message.
+function showBookingFallback(error, details) {
+  const existing = document.getElementById("bookingFallback");
+
+  if (existing) existing.remove();
+
+  const message = [
+    "Здравствуйте! Хочу забронировать, но на сайте не удалось отправить заявку.",
+    "",
+    `Пакет: ${selectedPackage?.title || "не выбран"}`,
+    `Дата и время: ${formatSlotLabel(details.startAt)}`,
+    `Имя: ${details.clientName}`,
+    `Телефон: ${details.clientPhone}`,
+    details.clientComment ? `Комментарий: ${details.clientComment}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const box = document.createElement("div");
+  box.className = "booking-fallback";
+  box.id = "bookingFallback";
+  box.innerHTML = `
+    <p class="booking-fallback-title">Не удалось отправить заявку</p>
+    <p>${escapeHtml(error.message || "Сервис бронирования сейчас недоступен.")}</p>
+    <p>Отправьте её менеджеру в WhatsApp — данные уже подставлены.</p>
+    <button class="whatsapp-submit-btn" type="button">
+      <span class="whatsapp-icon"></span>
+      Отправить в WhatsApp
+    </button>
+  `;
+
+  box.querySelector("button").addEventListener("click", () => {
+    trackGoal("booking_fallback_whatsapp");
+    window.open(createWhatsAppUrl(message), "_blank");
+  });
+
+  bookingForm.appendChild(box);
+  box.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+function formatSlotLabel(startAt) {
+  if (!startAt) return "не выбрано";
+
+  const date = new Date(startAt);
+
+  if (Number.isNaN(date.getTime())) return String(startAt);
+
+  return date.toLocaleString("ru-RU", {
+    day: "2-digit",
+    month: "long",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+// The items currently rendered in the grid, in display order — the lightbox
+// pages through this rather than re-reading the DOM.
+let galleryItems = [];
 
 async function loadGallery() {
   const galleryGrid = document.getElementById("galleryGrid");
 
   if (!galleryGrid) return;
 
+  // The bundled photos are the fallback for both an empty catalogue *and* an
+  // unreachable API — previously only the first case was handled, so a backend
+  // outage replaced eleven ready photos with an error line.
+  let gallery = localGallery;
+
   try {
     const data = await apiRequest("/catalog/gallery");
-    const gallery = data.gallery?.length ? data.gallery : localGallery;
 
-    if (!gallery.length) {
-      galleryGrid.innerHTML = "<p>Фото скоро появятся.</p>";
-      return;
+    if (data.gallery?.length) {
+      gallery = data.gallery;
     }
+  } catch (error) {
+    console.error("Ошибка галереи, показываем локальные фото:", error);
+  }
 
+  try {
     galleryGrid.innerHTML = "";
+    galleryItems = gallery;
 
-    gallery.forEach((item) => {
+    gallery.forEach((item, index) => {
       const isVideo =
         item.media_type === "video" ||
         /\.(mp4|webm|mov)(\?.*)?$/i.test(item.image_url);
@@ -562,17 +678,193 @@ async function loadGallery() {
       }
 
       const img = document.createElement("img");
-      img.src = item.image_url;
+      const bundled = item.photo ? localPhoto(item.photo) : null;
+
+      // loading/decoding must be set BEFORE src: once a src lands on an image
+      // that is not already marked lazy, the fetch starts immediately and a
+      // later loading="lazy" does not call it back.
+      img.loading = "lazy";
+      img.decoding = "async";
+
+      if (bundled) {
+        img.sizes = GALLERY_SIZES;
+        img.srcset = bundled.srcset;
+        img.src = bundled.src;
+      } else {
+        img.src = item.image_url;
+      }
+
       img.alt = item.title || "Фото свидания";
       img.className = "gallery-photo reveal";
+      img.tabIndex = 0;
+      img.setAttribute("role", "button");
+      img.addEventListener("click", () => openLightbox(item));
+      img.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          openLightbox(item);
+        }
+      });
       galleryGrid.appendChild(img);
     });
 
     initScrollReveal(galleryGrid);
   } catch (error) {
-    galleryGrid.innerHTML = "<p>Не удалось загрузить галерею.</p>";
-    console.error("Ошибка галереи:", error);
+    galleryGrid.innerHTML = "<p>Не удалось показать галерею.</p>";
+    console.error("Ошибка отрисовки галереи:", error);
   }
+}
+
+/* =========================================================
+   GALLERY LIGHTBOX
+   The grid renders photos at card size; this is where a visitor actually
+   looks at them. Videos are skipped — they already play in place.
+   ========================================================= */
+
+const lightbox = document.getElementById("lightbox");
+const lightboxImage = document.getElementById("lightboxImage");
+const lightboxCaption = document.getElementById("lightboxCaption");
+const lightboxCounter = document.getElementById("lightboxCounter");
+let lightboxIndex = 0;
+let lightboxReturnFocus = null;
+
+function lightboxPhotos() {
+  return galleryItems.filter(
+    (item) =>
+      item.media_type !== "video" &&
+      !/\.(mp4|webm|mov)(\?.*)?$/i.test(item.image_url || "")
+  );
+}
+
+// The grid is capped at ~400px wide, so it loads the 800w rendition. Full
+// screen deserves the largest one we built.
+function fullSizeSource(item) {
+  const bundled = item.photo ? localPhoto(item.photo) : null;
+
+  if (!bundled) return { src: item.image_url, srcset: "" };
+
+  return {
+    src: bundled.src,
+    srcset: bundled.srcset,
+    // The figure is capped at 1100px and otherwise fills the screen, so a
+    // phone still gets a phone-sized file here rather than the 1600w one.
+    sizes: "(max-width: 1100px) 100vw, 1100px",
+  };
+}
+
+function openLightbox(item) {
+  if (!lightbox) return;
+
+  const photos = lightboxPhotos();
+  const index = photos.indexOf(item);
+
+  if (!photos.length || index === -1) return;
+
+  lightboxReturnFocus = document.activeElement;
+  lightboxIndex = index;
+
+  renderLightbox();
+  lightbox.classList.add("active");
+  document.body.classList.add("modal-open");
+  document.getElementById("lightboxClose")?.focus();
+}
+
+function renderLightbox() {
+  const photos = lightboxPhotos();
+  const item = photos[lightboxIndex];
+
+  if (!item) return;
+
+  const source = fullSizeSource(item);
+
+  lightboxImage.removeAttribute("srcset");
+  lightboxImage.removeAttribute("sizes");
+  lightboxImage.src = source.src;
+
+  if (source.srcset) {
+    lightboxImage.srcset = source.srcset;
+    lightboxImage.sizes = source.sizes;
+  }
+
+  lightboxImage.alt = item.title || "Фото свидания";
+  lightboxCaption.textContent = item.title || "";
+  lightboxCounter.textContent = `${lightboxIndex + 1} / ${photos.length}`;
+
+  const single = photos.length < 2;
+  document.getElementById("lightboxPrev").hidden = single;
+  document.getElementById("lightboxNext").hidden = single;
+}
+
+function stepLightbox(delta) {
+  const photos = lightboxPhotos();
+
+  if (photos.length < 2) return;
+
+  lightboxIndex = (lightboxIndex + delta + photos.length) % photos.length;
+  renderLightbox();
+}
+
+function closeLightbox() {
+  if (!lightbox) return;
+
+  lightbox.classList.remove("active");
+
+  // The booking sheet may still be open behind it, so only release the scroll
+  // lock when nothing else needs it.
+  if (!packageModal?.classList.contains("active")) {
+    document.body.classList.remove("modal-open");
+  }
+
+  lightboxReturnFocus?.focus?.();
+  lightboxReturnFocus = null;
+}
+
+if (lightbox) {
+  document.getElementById("lightboxClose").addEventListener("click", closeLightbox);
+  document.getElementById("lightboxBackdrop").addEventListener("click", closeLightbox);
+  document
+    .getElementById("lightboxPrev")
+    .addEventListener("click", () => stepLightbox(-1));
+  document
+    .getElementById("lightboxNext")
+    .addEventListener("click", () => stepLightbox(1));
+
+  document.addEventListener("keydown", (event) => {
+    if (!lightbox.classList.contains("active")) return;
+
+    if (event.key === "Escape") {
+      event.stopImmediatePropagation();
+      closeLightbox();
+    }
+    if (event.key === "ArrowLeft") stepLightbox(-1);
+    if (event.key === "ArrowRight") stepLightbox(1);
+  });
+
+  // Swipe, because on a phone that is how people page through photos.
+  let touchStartX = null;
+
+  lightbox.addEventListener(
+    "touchstart",
+    (event) => {
+      touchStartX = event.changedTouches[0].clientX;
+    },
+    { passive: true }
+  );
+
+  lightbox.addEventListener(
+    "touchend",
+    (event) => {
+      if (touchStartX === null) return;
+
+      const delta = event.changedTouches[0].clientX - touchStartX;
+      touchStartX = null;
+
+      if (Math.abs(delta) < 45) return;
+
+      stepLightbox(delta < 0 ? 1 : -1);
+    },
+    { passive: true }
+  );
 }
 
 function getActiveCategory() {
@@ -647,28 +939,113 @@ tabButtons.forEach((button) => {
 const burgerBtn = document.getElementById("burgerBtn");
 const mobileMenu = document.getElementById("mobileMenu");
 
+function setMobileMenu(open) {
+  if (!mobileMenu || !burgerBtn) return;
+
+  mobileMenu.classList.toggle("active", open);
+  burgerBtn.classList.toggle("is-open", open);
+  burgerBtn.setAttribute("aria-expanded", String(open));
+  burgerBtn.setAttribute("aria-label", open ? "Закрыть меню" : "Открыть меню");
+  // Without this the page keeps scrolling behind the open menu, which on a
+  // phone looks like the menu itself is broken.
+  document.body.classList.toggle("menu-open", open);
+}
+
 if (burgerBtn && mobileMenu) {
+  burgerBtn.setAttribute("aria-controls", "mobileMenu");
+  setMobileMenu(false);
+
   burgerBtn.addEventListener("click", () => {
-    mobileMenu.classList.toggle("active");
+    setMobileMenu(!mobileMenu.classList.contains("active"));
   });
 }
 
 document.querySelectorAll(".mobile-menu a").forEach((link) => {
-  link.addEventListener("click", () => {
-    if (mobileMenu) {
-      mobileMenu.classList.remove("active");
-    }
-  });
+  link.addEventListener("click", () => setMobileMenu(false));
+});
+
+// Tapping the page behind the menu should dismiss it, as any native sheet does.
+document.addEventListener("click", (event) => {
+  if (!mobileMenu?.classList.contains("active")) return;
+  if (mobileMenu.contains(event.target) || burgerBtn?.contains(event.target)) {
+    return;
+  }
+
+  setMobileMenu(false);
 });
 
 document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape") {
-    closePackageModal();
+  if (event.key !== "Escape") return;
+
+  if (mobileMenu?.classList.contains("active")) {
+    setMobileMenu(false);
+    return;
   }
+
+  closePackageModal();
 });
 
 if (clientDateInput) {
   clientDateInput.addEventListener("change", loadAvailableSlots);
+
+  // Nothing can be booked in the past, and a date picker that allows it just
+  // sends the visitor to an empty slot list.
+  clientDateInput.min = new Date().toLocaleDateString("sv-SE");
+}
+
+// Kazakhstan numbers as +7 (7XX) XXX-XX-XX. Managers get these by WhatsApp and
+// by Telegram, and a consistent shape is what makes them dialable.
+const clientPhoneInput = document.getElementById("clientPhone");
+
+function formatKzPhone(raw) {
+  let digits = String(raw).replace(/\D/g, "");
+
+  // Strip the country/trunk prefix so what is left is the 10-digit national
+  // number. Length matters: a local 771-XXX-XX-XX starts with the same two
+  // digits as the +7 7... country-code form, and only the total length tells
+  // them apart.
+  if (digits.startsWith("8")) {
+    digits = digits.slice(1);
+  } else if (digits.length === 11 && digits.startsWith("7")) {
+    digits = digits.slice(1);
+  }
+
+  const national = digits.slice(0, 10);
+
+  if (!national) return "";
+
+  const code = national.slice(0, 3);
+  const first = national.slice(3, 6);
+  const second = national.slice(6, 8);
+  const third = national.slice(8, 10);
+
+  let out = `+7 (${code}`;
+
+  if (code.length === 3) out += ")";
+  if (first) out += ` ${first}`;
+  if (second) out += `-${second}`;
+  if (third) out += `-${third}`;
+
+  return out;
+}
+
+
+if (clientPhoneInput) {
+  clientPhoneInput.addEventListener("input", (event) => {
+    const input = event.target;
+    // Only reposition the caret when it was already at the end, so editing
+    // mid-number does not yank it away.
+    const atEnd = input.selectionStart === input.value.length;
+    const formatted = formatKzPhone(input.value);
+
+    if (formatted === input.value) return;
+
+    input.value = formatted;
+
+    if (atEnd) {
+      input.setSelectionRange(formatted.length, formatted.length);
+    }
+  });
 }
 
 if (bookingForm) {
@@ -698,13 +1075,22 @@ function initScrollReveal(root = document) {
         }
       });
     },
-    { threshold: 0.15, rootMargin: "0px 0px -60px 0px" }
+    // A block taller than the phone viewport never reaches 15% visibility, so
+    // it would stay at opacity 0 forever. Trigger as soon as any of it shows.
+    { threshold: 0.01, rootMargin: "0px 0px -40px 0px" }
   );
 
   items.forEach((el, index) => {
-    el.style.transitionDelay = `${Math.min(index % 4, 3) * 90}ms`;
+    el.style.transitionDelay = `${Math.min(index % 4, 3) * 70}ms`;
     observer.observe(el);
   });
+
+  // Last resort: content hidden by an animation is worse than content with no
+  // animation, so nothing stays invisible for more than a few seconds however
+  // the observer behaves.
+  setTimeout(() => {
+    items.forEach((el) => el.classList.add("is-visible"));
+  }, 4000);
 }
 
 const siteHeader = document.querySelector(".header");
@@ -755,7 +1141,49 @@ applyTheme(getStoredTheme());
 document.getElementById("themeToggle")?.addEventListener("click", toggleTheme);
 document.getElementById("themeToggleMobile")?.addEventListener("click", toggleTheme);
 
+/* =========================================================
+   ANALYTICS
+   Loads nothing unless a counter id is set in config.js, and every call goes
+   through trackGoal() so the rest of the code never touches the vendor API.
+   ========================================================= */
+
+function initMetrika() {
+  const id = window.SVIDANIE_METRIKA_ID;
+
+  if (!id) return;
+
+  window.ym =
+    window.ym ||
+    function () {
+      (window.ym.a = window.ym.a || []).push(arguments);
+    };
+  window.ym.l = Number(new Date());
+
+  const script = document.createElement("script");
+  script.src = "https://mc.yandex.ru/metrika/tag.js";
+  script.async = true;
+  document.head.appendChild(script);
+
+  window.ym(id, "init", {
+    clickmap: true,
+    trackLinks: true,
+    accurateTrackBounce: true,
+    webvisor: true,
+  });
+}
+
+// Named conversion points. Without these the analytics only shows pageviews,
+// which says nothing about where a booking falls apart.
+function trackGoal(goal) {
+  const id = window.SVIDANIE_METRIKA_ID;
+
+  if (!id || typeof window.ym !== "function") return;
+
+  window.ym(id, "reachGoal", goal);
+}
+
 async function initSite() {
+  initMetrika();
   initScrollReveal();
   await Promise.allSettled([loadSiteSettings(), loadPackages(), loadGallery()]);
 }

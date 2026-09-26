@@ -55,6 +55,23 @@
 
   --font-display: "Playfair Display", Georgia, "Times New Roman", serif;
   --font-body: "Manrope", Arial, sans-serif;
+
+  /* One rhythm for the whole page instead of ~50 hand-picked pixel values.
+     96px of section padding is right on a desktop and eats a third of a
+     phone screen, so both ends of the range are stated once, here. */
+  --section-y: clamp(54px, 9vw, 96px);
+  --gutter: clamp(16px, 4.5vw, 20px);
+
+  /* Smallest comfortable touch target. Anything a finger hits should be at
+     least this tall. */
+  --tap: 44px;
+
+  /* One motion scale. Hovers are quick, panels are slower, and everything
+     shares an ease so the page feels like one thing. */
+  --dur-fast: 0.18s;
+  --dur-base: 0.28s;
+  --dur-slow: 0.6s;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 :root[data-theme="light"] {
@@ -153,8 +170,8 @@ a {
    fully visible if JS never runs, and is skipped for reduced-motion users. */
 .reveal {
   opacity: 0;
-  transform: translateY(28px);
-  transition: opacity 0.7s ease, transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+  transform: translateY(22px);
+  transition: opacity var(--dur-slow) ease, transform var(--dur-slow) var(--ease);
 }
 
 .reveal.is-visible {
@@ -182,7 +199,7 @@ button {
 }
 
 .container {
-  width: min(1200px, calc(100% - 40px));
+  width: min(1200px, calc(100% - var(--gutter) * 2));
   margin: 0 auto;
   position: relative;
 }
@@ -529,8 +546,9 @@ h3 {
 
 .burger {
   display: none;
-  width: 42px;
-  height: 42px;
+  width: var(--tap);
+  height: var(--tap);
+  position: relative;
   border: none;
   background: transparent;
 }
@@ -577,7 +595,11 @@ h3 {
    ========================================================= */
 
 .hero {
+  /* svh is the viewport with the mobile browser chrome showing. Plain vh is
+     the chrome-hidden height, so on iOS Safari a 94vh hero pushes its own
+     buttons below the fold until the user scrolls. */
   min-height: 94vh;
+  min-height: 94svh;
   padding: 150px 0 100px;
   position: relative;
   display: flex;
@@ -585,18 +607,29 @@ h3 {
   overflow: hidden;
 }
 
-.hero::before {
-  content: "";
+/* The photo itself is an <img> in the markup (see index.html) so the browser
+   can preload it and pick a phone-sized file; this element only overscans it
+   so the Ken Burns zoom never exposes an edge. */
+.hero-photo {
   position: absolute;
   inset: -4%;
   z-index: 0;
+  width: 108%;
+  height: 108%;
+  object-fit: cover;
+  object-position: center 42%;
+  animation: heroKenBurns 26s ease-in-out infinite alternate;
+}
+
+/* Darkening gradients, painted over the photo. */
+.hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
   background:
     linear-gradient(100deg, rgba(5, 3, 4, 0.96) 8%, rgba(16, 8, 10, 0.66) 46%, rgba(5, 3, 4, 0.28) 100%),
-    linear-gradient(0deg, rgba(5, 3, 4, 0.98) 0%, rgba(5, 3, 4, 0.15) 46%, rgba(5, 3, 4, 0.55) 100%),
-    url("assets/gallery/saxophone-date-wide.png");
-  background-size: cover;
-  background-position: center 42%;
-  animation: heroKenBurns 26s ease-in-out infinite alternate;
+    linear-gradient(0deg, rgba(5, 3, 4, 0.98) 0%, rgba(5, 3, 4, 0.15) 46%, rgba(5, 3, 4, 0.55) 100%);
 }
 
 @keyframes heroKenBurns {
@@ -609,7 +642,7 @@ h3 {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .hero::before {
+  .hero-photo {
     animation: none;
   }
 }
@@ -625,12 +658,13 @@ h3 {
   right: 0;
   bottom: 0;
   height: 140px;
+  z-index: 2;
   background: linear-gradient(180deg, rgba(7, 4, 5, 0), var(--ink));
 }
 
 .hero-content {
   position: relative;
-  z-index: 1;
+  z-index: 3;
   max-width: 880px;
 }
 
@@ -663,7 +697,7 @@ h3 {
    ========================================================= */
 
 .process-section {
-  padding: 84px 0 92px;
+  padding: var(--section-y) 0;
   background: var(--ink);
   position: relative;
   border-bottom: 1px solid var(--line-soft);
@@ -718,7 +752,7 @@ h3 {
    ========================================================= */
 
 .about-section {
-  padding: 96px 0;
+  padding: var(--section-y) 0;
   background: var(--section-alt-bg);
   border-bottom: 1px solid var(--line-soft);
 }
@@ -773,7 +807,7 @@ h3 {
    ========================================================= */
 
 .packages-section {
-  padding: 96px 0;
+  padding: var(--section-y) 0;
   background: var(--ink);
 }
 
@@ -790,6 +824,8 @@ h3 {
   background: transparent;
   color: var(--accent-text);
   padding: 12px 22px;
+  min-height: var(--tap);
+  white-space: nowrap;
   border-radius: var(--radius-pill);
   font-weight: 700;
   font-size: 14px;
@@ -817,7 +853,7 @@ h3 {
 .package-card {
   position: relative;
   border-radius: var(--radius-lg);
-  min-height: 540px;
+  min-height: 500px;
   padding: 28px;
   border: 1px solid var(--line);
   background-size: cover !important;
@@ -948,7 +984,7 @@ h3 {
    ========================================================= */
 
 .gallery-section {
-  padding: 96px 0;
+  padding: var(--section-y) 0;
   background: var(--section-alt-bg);
   border-top: 1px solid var(--line-soft);
 }
@@ -991,7 +1027,7 @@ h3 {
    ========================================================= */
 
 .contacts-section {
-  padding: 100px 0;
+  padding: var(--section-y) 0;
   background: var(--ink);
 }
 
@@ -1251,9 +1287,28 @@ h3 {
   color: var(--paper);
   padding: 15px 16px;
   border-radius: var(--radius-sm);
-  font-size: 15px;
+  /* Never below 16px: iOS Safari zooms the whole page when a focused field
+     has smaller text, which threw the booking form off-screen mid-typing. */
+  font-size: 16px;
+  font-family: inherit;
+  min-height: var(--tap);
   outline: none;
   transition: border-color 0.2s ease;
+}
+
+/* Visible keyboard focus. The gold border alone is easy to miss, and it was
+   the only focus indicator on the form. */
+.booking-form input:focus-visible,
+.booking-form textarea:focus-visible,
+.booking-form select:focus-visible,
+.tab-btn:focus-visible,
+.slot-btn:focus-visible,
+.main-btn:focus-visible,
+.outline-btn:focus-visible,
+.burger:focus-visible,
+.theme-toggle:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
 }
 
 .booking-form input::placeholder,
@@ -1307,7 +1362,7 @@ h3 {
 }
 
 .slot-btn {
-  min-height: 42px;
+  min-height: var(--tap);
   border-radius: var(--radius-sm);
   border: 1px solid var(--line);
   background: var(--surface);
@@ -1391,8 +1446,227 @@ body.modal-open {
 }
 
 /* =========================================================
-   RESPONSIVE
+   DEGRADED STATES
+   Shown when the booking API is unreachable. The point is never to leave
+   the visitor at a dead end: every one of these ends in a WhatsApp CTA.
    ========================================================= */
+
+.catalog-fallback {
+  grid-column: 1 / -1;
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  text-align: center;
+  padding: 44px 26px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(180deg, var(--surface), var(--surface-soft));
+}
+
+.catalog-fallback h3 {
+  font-family: var(--font-display);
+  font-size: 23px;
+  color: var(--accent-text);
+}
+
+.catalog-fallback p {
+  max-width: 44ch;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.booking-fallback {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: rgba(209, 88, 90, 0.08);
+}
+
+.booking-fallback p {
+  color: var(--muted);
+  font-size: 14.5px;
+  line-height: 1.55;
+}
+
+.booking-fallback-title {
+  font-family: var(--font-display);
+  font-size: 18px;
+  color: var(--rose-soft) !important;
+}
+
+/* =========================================================
+   GALLERY LIGHTBOX
+   ========================================================= */
+
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(16px, 4vw, 48px);
+}
+
+.lightbox.active {
+  display: flex;
+}
+
+.lightbox-backdrop {
+  position: absolute;
+  inset: 0;
+  border: none;
+  padding: 0;
+  background: rgba(4, 2, 3, 0.92);
+  backdrop-filter: blur(6px);
+  cursor: zoom-out;
+}
+
+.lightbox-figure {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 14px;
+  justify-items: center;
+  max-width: min(1100px, 100%);
+  animation: lightboxIn var(--dur-base) var(--ease);
+}
+
+@keyframes lightboxIn {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.lightbox-figure img {
+  max-width: 100%;
+  /* Leave room for the caption and the counter without letting a portrait
+     photo push either off-screen. */
+  max-height: calc(100svh - 190px);
+  width: auto;
+  height: auto;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+}
+
+.lightbox-figure figcaption {
+  color: var(--muted);
+  font-size: 14.5px;
+  text-align: center;
+}
+
+.lightbox-btn {
+  position: absolute;
+  z-index: 2;
+  width: var(--tap);
+  height: var(--tap);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: rgba(10, 6, 7, 0.7);
+  backdrop-filter: blur(8px);
+  color: #f9f0e4;
+  font-size: 26px;
+  line-height: 1;
+  transition: background var(--dur-fast) ease, border-color var(--dur-fast) ease,
+    transform var(--dur-fast) ease;
+}
+
+.lightbox-btn:hover {
+  background: rgba(227, 171, 92, 0.22);
+  border-color: var(--gold);
+  transform: scale(1.06);
+}
+
+.lightbox-btn:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 3px;
+}
+
+.lightbox-btn[hidden] {
+  display: none;
+}
+
+.lightbox-close {
+  top: clamp(12px, 3vw, 28px);
+  right: clamp(12px, 3vw, 28px);
+  font-size: 28px;
+}
+
+.lightbox-prev,
+.lightbox-next {
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 32px;
+  padding-bottom: 4px;
+}
+
+.lightbox-prev:hover,
+.lightbox-next:hover {
+  transform: translateY(-50%) scale(1.06);
+}
+
+.lightbox-prev {
+  left: clamp(8px, 2vw, 28px);
+}
+
+.lightbox-next {
+  right: clamp(8px, 2vw, 28px);
+}
+
+.lightbox-counter {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: max(16px, env(safe-area-inset-bottom));
+  color: var(--muted-soft);
+  font-size: 13px;
+  letter-spacing: 0.08em;
+}
+
+/* The grid photos are buttons now — say so on hover and on focus. */
+.gallery-photo {
+  cursor: zoom-in;
+}
+
+.gallery-photo:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lightbox-figure {
+    animation: none;
+  }
+}
+
+/* =========================================================
+   RESPONSIVE
+   Breakpoints: 1024 (tablet landscape), 980 (nav collapses), 680 (single
+   column), 560 (the phone layer proper), 360 (small Androids).
+   ========================================================= */
+
+@media (max-width: 1024px) {
+  .packages-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .process-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
 
 @media (max-width: 980px) {
   .nav,
@@ -1434,11 +1708,35 @@ body.modal-open {
 @media (max-width: 680px) {
   .hero {
     min-height: 88vh;
-    padding: 122px 0 70px;
+    min-height: 88svh;
+    padding: 108px 0 60px;
+  }
+
+  .hero h1 {
+    /* Seven lines of heading pushed the CTA off a 375px screen. Tighter
+       leading and a smaller ceiling bring it back above the fold. */
+    font-size: clamp(30px, 8.2vw, 40px);
+    line-height: 1.12;
+    margin-bottom: 16px;
   }
 
   .hero-text {
     font-size: 16.5px;
+    margin-bottom: 26px;
+  }
+
+  .hero-buttons {
+    gap: 10px;
+  }
+
+  .hero-buttons .main-btn,
+  .hero-buttons .outline-btn {
+    flex: 1 1 100%;
+    justify-content: center;
+  }
+
+  .section-heading {
+    margin-bottom: 32px;
   }
 
   .about-grid,
@@ -1461,26 +1759,191 @@ body.modal-open {
     padding: 34px 22px;
   }
 
+  .package-card {
+    min-height: 420px;
+  }
+}
+
+@media (max-width: 560px) {
+  /* --- Category tabs: one swipeable row instead of two wrapped rows --- */
+  .package-tabs {
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    /* Bleed to the screen edges so the row reads as scrollable. */
+    margin-inline: calc(var(--gutter) * -1);
+    padding-inline: var(--gutter);
+    padding-bottom: 4px;
+    margin-bottom: 30px;
+  }
+
+  .package-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .tab-btn {
+    flex: 0 0 auto;
+    scroll-snap-align: start;
+  }
+
+  /* --- Booking modal as a bottom sheet --- */
   .modal-content {
-    padding: 26px 18px;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    /* Anchored to the bottom of the real (chrome-visible) viewport so the
+       sheet never hides behind the browser bar. */
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    max-height: 92svh;
+    padding: 22px var(--gutter) calc(22px + env(safe-area-inset-bottom));
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    border-bottom: none;
+    animation: sheetUp 0.32s cubic-bezier(0.16, 1, 0.3, 1);
+    overscroll-behavior: contain;
+  }
+
+  /* Grab handle, so the sheet reads as a sheet. */
+  .modal-content::before {
+    content: "";
+    position: sticky;
+    top: 0;
+    display: block;
+    width: 44px;
+    height: 4px;
+    margin: -6px auto 14px;
+    border-radius: 999px;
+    background: var(--line);
+  }
+
+  @keyframes sheetUp {
+    from {
+      transform: translateY(100%);
+    }
+    to {
+      transform: none;
+    }
+  }
+
+  .modal-close {
+    right: var(--gutter);
+    top: 14px;
+    width: var(--tap);
+    height: var(--tap);
   }
 
   .modal-content h2 {
     font-size: 25px;
+    padding-right: 52px;
   }
 
   .modal-image {
     aspect-ratio: 4 / 3;
   }
 
+  .slot-grid {
+    grid-template-columns: repeat(auto-fit, minmax(84px, 1fr));
+  }
+
+  /* --- Floating WhatsApp: clear of the home indicator --- */
   .floating-whatsapp {
     width: 56px;
     height: 56px;
-    right: 16px;
-    bottom: 16px;
+    right: max(16px, env(safe-area-inset-right));
+    bottom: max(16px, calc(env(safe-area-inset-bottom) + 10px));
+  }
+
+  /* --- Lightbox: swipe is the primary gesture, so the arrows step aside --- */
+  .lightbox-prev,
+  .lightbox-next {
+    top: auto;
+    bottom: max(58px, calc(env(safe-area-inset-bottom) + 52px));
+    transform: none;
+  }
+
+  .lightbox-prev:hover,
+  .lightbox-next:hover {
+    transform: scale(1.06);
+  }
+
+  .lightbox-figure img {
+    max-height: calc(100svh - 230px);
+  }
+
+  /* --- Mobile menu: scrollable and clear of the notch --- */
+  .mobile-menu {
+    max-height: calc(100svh - 78px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-bottom: calc(26px + env(safe-area-inset-bottom));
+  }
+
+  .mobile-menu a,
+  .mobile-menu button {
+    min-height: var(--tap);
+    display: flex;
+    align-items: center;
+  }
+}
+
+@media (max-width: 360px) {
+  .logo {
+    font-size: 19px;
+  }
+
+  .hero h1 {
+    font-size: 28px;
   }
 
   .package-card {
-    min-height: 500px;
+    padding: 22px;
   }
+
+  .contacts-card {
+    padding: 28px 18px;
+  }
+}
+
+/* The floating button overlaps the sheet on a phone; hide it while the
+   booking modal is open. */
+body.modal-open .floating-whatsapp {
+  display: none;
+}
+
+/* Burger turns into a close icon while the menu is open. */
+.burger span {
+  transition: transform 0.25s ease, opacity 0.2s ease;
+}
+
+.burger.is-open span:nth-child(1) {
+  transform: translateY(9px) rotate(45deg);
+}
+
+.burger.is-open span:nth-child(2) {
+  opacity: 0;
+}
+
+.burger.is-open span:nth-child(3) {
+  transform: translateY(-9px) rotate(-45deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal-content {
+    animation: none;
+  }
+
+  .burger span {
+    transition: none;
+  }
+}
+
+/* Locks the page behind the mobile menu, the same way body.modal-open does
+   for the booking sheet. */
+body.menu-open {
+  overflow: hidden;
 }
