@@ -1,0 +1,73 @@
+# Nothing inside the backend can report that the backend is down, so the probe
+# has to live outside it. This runs on GitHub's schedulers and pings the health
+# endpoint (which itself checks Postgres — see backend/src/app.service.ts).
+#
+# Required repository secrets:
+#   HEALTH_URL         e.g. https://<backend-host>/health
+#   TELEGRAM_BOT_TOKEN same bot the site already uses for booking alerts
+#   TELEGRAM_CHAT_ID   chat that should receive the outage alert
+#
+# Note: GitHub pauses scheduled workflows in repositories with no activity for
+# 60 days, and */15 is best-effort rather than exact.
+
+name: Uptime probe
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe the health endpoint
+        id: probe
+        continue-on-error: true
+        run: |
+          set +e
+          body=$(curl -sS --max-time 20 -w '\n%{http_code}' "${{ secrets.HEALTH_URL }}")
+          code=$(printf '%s' "$body" | tail -n1)
+          payload=$(printf '%s' "$body" | sed '$d')
+
+          echo "HTTP $code"
+          echo "$payload"
+
+          {
+            echo "code=$code"
+            echo "payload<<EOF_PAYLOAD"
+            echo "$payload"
+            echo "EOF_PAYLOAD"
+          } >> "$GITHUB_OUTPUT"
+
+          # Two consecutive failures are what we alert on; a single blip is
+          # usually the host cycling a container.
+          if [ "$code" != "200" ]; then
+            sleep 45
+            recheck=$(curl -sS --max-time 20 -o /dev/null -w '%{http_code}' "${{ secrets.HEALTH_URL }}")
+            echo "recheck HTTP $recheck"
+            [ "$recheck" = "200" ] && exit 0
+            exit 1
+          fi
+
+      - name: Alert Telegram
+        if: steps.probe.outcome == 'failure'
+        env:
+          CODE: ${{ steps.probe.outputs.code }}
+          PAYLOAD: ${{ steps.probe.outputs.payload }}
+        run: |
+          message=$(printf '%s\n%s\n%s\n%s' \
+            "<b>Сайт не отвечает</b>" \
+            "Бэкенд не прошёл проверку: HTTP ${CODE}" \
+            "Клиенты сейчас не могут бронировать онлайн." \
+            "${PAYLOAD}")
+
+          curl -sS --max-time 20 \
+            "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+            -d parse_mode=HTML \
+            --data-urlencode "text=${message}"
+
+      - name: Fail the run so it shows red
+        if: steps.probe.outcome == 'failure'
+        run: exit 1
