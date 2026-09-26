@@ -1,0 +1,38 @@
+# Временная площадка, пока не оплачен Railway (там сервис и домен уже настроены,
+# см. backend/README.md). Переносится обратно сменой одного адреса в vercel.json.
+#
+# Как развернуть: на render.com → New → Blueprint → выбрать этот репозиторий.
+# Render прочитает файл и создаст сервис; значения переменных он спросит сам —
+# в репозиторий они не попадают (sync: false).
+#
+# Важно про бесплатный тариф: сервис засыпает после 15 минут без запросов и
+# просыпается ~50 секунд. Внешний пинг /health каждые 10 минут держит его в
+# рабочем состоянии.
+
+services:
+  - type: web
+    name: svidanie-astana-backend
+    runtime: docker
+    plan: free
+    # Ближе всего к базе: она в ap-southeast-2 (Сидней), а обращений к ней
+    # на одну страницу несколько, поэтому задержка бэкенд-база важнее, чем
+    # задержка посетитель-бэкенд. Франкфурт был бы ближе к Астане, но каждый
+    # SQL-запрос шёл бы через полпланеты.
+    region: singapore
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: FRONTEND_URL
+        value: https://svidanie-site.vercel.app
