@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+
+# The admin panel has nothing to index and should not surface in search.
+Disallow: /admin.html
+Disallow: /api/
+
+Sitemap: https://svidanie-site.vercel.app/sitemap.xml
